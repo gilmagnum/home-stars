@@ -192,3 +192,18 @@ form:has(input[name=rec][value=once]:checked) .rec-once{display:flex}
 .young .tick span{width:36px;height:36px}
 
 .celebrate{background:var(--yellow);color:var(--navy);border-radius:var(--radius);padding:14px;font-weight:700;text-align:center}
+/* v2: avatars, choices, exams */
+.av{overflow:hidden}
+.av svg{display:block}
+.av.xl{width:140px;height:140px;font-size:56px;box-shadow:0 6px 20px rgba(15,42,95,.18)}
+.me-head{display:flex;flex-direction:column;align-items:center;gap:10px;text-align:center;padding-top:calc(env(safe-area-inset-top) + 8px)}
+.choices{display:flex;flex-wrap:wrap;gap:8px}
+.choice{min-height:42px;padding:0 14px;border-radius:999px;border:1px solid #C3CAD8;background:#fff;font-size:14px;display:inline-flex;align-items:center;gap:4px}
+.choice[aria-pressed="true"]{background:var(--blue);border-color:var(--blue);color:#fff}
+.choice:disabled{background:#ECEFF5;color:var(--muted);border-style:dashed;cursor:default}
+.choice.sw{width:42px;height:42px;padding:0;border:3px solid #fff;box-shadow:0 0 0 1px #C3CAD8}
+.choice.sw[aria-pressed="true"]{box-shadow:0 0 0 3px var(--navy)}
+.unlock{display:flex;align-items:center;gap:10px;background:var(--yellow);color:var(--navy);border:none;border-radius:var(--radius);padding:14px;text-align:right;font-size:15px;width:100%}
+.pts.grey{color:var(--muted)}
+form:has(input[name=duty]:checked) .pts-field{display:none}
+.nav .cnt{min-width:18px}
