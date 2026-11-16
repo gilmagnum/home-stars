@@ -7,7 +7,7 @@
   var SYNC = !!(CFG.supabaseUrl && CFG.supabaseKey);
   var K_STATE = 'hs:state', K_CODE = 'hs:code', K_ME = 'hs:me';
   var LEVEL_PTS = 150;
-  var COLORS = ['#1E5BD8', '#1971C2', '#364FC7', '#0F2A5F', '#7C3AED', '#5F3DC4', '#9C36B5', '#C2255C', '#A61E4D', '#E03131', '#D9480F', '#B35C00', '#5C940D', '#2B8A3E', '#087F5B', '#0E7C86', '#495057', '#212529'];
+  var COLORS = ['#1E5BD8', '#1971C2', '#364FC7', '#0F2A5F', '#7C3AED', '#5F3DC4', '#9C36B5', '#C2255C', '#A61E4D', '#E03131', '#D9480F', '#B35C00', '#5C940D', '#2B8A3E', '#087F5B', '#0E7C86', '#495057', '#212529', '#FFD43B', '#FAB005', '#F08C00'];
   var DAY_L = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'];
   var DAY_N = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
   var RW_ICONS = { tv: 'זמן מסך', food: 'אוכל', moon: 'שעת שינה', heart: 'פינוק', film: 'סרט', ball: 'משחק', gift: 'מתנה', star: 'מיוחד' };
@@ -75,7 +75,10 @@
     edit: '<path d="M4 20h4L19 9l-4-4L4 16z"/>',
     copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 0 0-1-1H5a1 1 0 0 0-1 1v10a1 1 0 0 0 1 1h3"/>',
     cloud: '<path d="M7 18a5 5 0 1 1 1-9.9A6 6 0 0 1 19 10a4 4 0 0 1-1 8z"/>',
-    undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>'
+    undo: '<path d="M9 14 4 9l5-5"/><path d="M4 9h10a6 6 0 0 1 0 12h-3"/>',
+    user: '<circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/>',
+    bell: '<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9"/><path d="M10.3 21a1.94 1.94 0 0 0 3.4 0"/>',
+    exam: '<path d="M9 3h6v4H9z"/><path d="M16 5h2a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H6a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1h2M9 13l2 2 4-4"/>'
   };
   function ic(n, s) {
     s = s || 20;
@@ -83,6 +86,69 @@
   }
   function starIc(s) {
     return '<svg class="ic" width="' + s + '" height="' + s + '" viewBox="0 0 24 24" fill="#FFC93C" stroke="#E0A400" stroke-width="1.5" aria-hidden="true">' + IC.star + '</svg>';
+  }
+
+  // ---------- אווטאר ----------
+  var SKINS = ['#FFDBB5', '#F1C27D', '#D89A5B', '#A86B3C', '#6E4325'];
+  var HAIRC = ['#2B1B12', '#6B3E1F', '#B5651D', '#E8C547', '#C2255C'];
+  var HAIRS = [['none', 'בלי'], ['short', 'קצר'], ['long', 'ארוך'], ['curly', 'מתולתל'], ['bun', 'קוקו']];
+  var ITEMS = {
+    hat: { t: 'כובעים', list: [['cap', 'כובע מצחייה', 2], ['party', 'כובע מסיבה', 4], ['wizard', 'כובע קוסם', 6], ['crown', 'כתר', 8]] },
+    glasses: { t: 'משקפיים', list: [['round', 'משקפיים', 3], ['sun', 'משקפי שמש', 5], ['stars', 'משקפי כוכבים', 9]] },
+    extra: { t: 'אביזרים', list: [['bow', 'פפיון', 2], ['phones', 'אוזניות', 7], ['cape', 'גלימת גיבור', 10]] },
+    bg: { t: 'רקע', list: [['plain', 'רגיל', 1], ['stars', 'כוכבים', 3], ['rainbow', 'קשת', 6], ['gold', 'מסגרת זהב', 12]] }
+  };
+  function defAv() { return { skin: 0, hair: 'short', hairC: 0, hat: '', glasses: '', extra: '', bg: 'plain' }; }
+  function onColor(hex) {
+    var h = String(hex || '#000').replace('#', '');
+    var r = parseInt(h.substr(0, 2), 16), g = parseInt(h.substr(2, 2), 16), b = parseInt(h.substr(4, 2), 16);
+    return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.62 ? '#13203B' : '#FFFFFF';
+  }
+  function starPts(cx, cy, R) {
+    var p = [];
+    for (var i = 0; i < 10; i++) { var a = -Math.PI / 2 + i * Math.PI / 5, rr = i % 2 ? R * 0.45 : R; p.push((cx + rr * Math.cos(a)).toFixed(1) + ',' + (cy + rr * Math.sin(a)).toFixed(1)); }
+    return p.join(' ');
+  }
+  function avatarSvg(m, a) {
+    a = a || m.av || defAv();
+    var col = m.color || '#1E5BD8', skin = SKINS[a.skin] || SKINS[0], hc = HAIRC[a.hairC] || HAIRC[0], ink = '#13203B', o = '';
+    var cid = 'c' + Math.random().toString(36).slice(2, 7);
+    o += '<defs><clipPath id="' + cid + '"><circle cx="50" cy="50" r="50"/></clipPath></defs><g clip-path="url(#' + cid + ')">';
+    o += '<rect width="100" height="100" fill="' + esc(col) + '"/>';
+    if (a.bg === 'stars') o += [[16, 20, 5], [84, 18, 4], [12, 62, 3.5], [88, 58, 5], [78, 86, 3]].map(function (s) { return '<polygon points="' + starPts(s[0], s[1], s[2]) + '" fill="#FFF2C7" opacity=".9"/>'; }).join('');
+    if (a.bg === 'rainbow') o += ['#E03131', '#F08C00', '#FAB005', '#2B8A3E', '#1971C2'].map(function (c, i) { return '<circle cx="50" cy="104" r="' + (66 - i * 6) + '" fill="none" stroke="' + c + '" stroke-width="6" opacity=".8"/>'; }).join('');
+    if (a.extra === 'cape') o += '<path d="M24 74 L12 100 L88 100 L76 74 Z" fill="#E03131"/>';
+    if (a.hair === 'long') o += '<path d="M25 50 C25 24 75 24 75 50 L78 84 L22 84 Z" fill="' + hc + '"/>';
+    o += '<path d="M20 100 C20 80 34 72 50 72 C66 72 80 80 80 100 Z" fill="#F2F5FB"/>';
+    o += '<circle cx="50" cy="48" r="24" fill="' + skin + '"/>';
+    if (a.hair === 'short' || a.hair === 'long' || a.hair === 'bun') o += '<path d="M26 46 C25 25 75 25 74 46 C68 37 58 33 50 33 C42 33 32 37 26 46 Z" fill="' + hc + '"/>';
+    if (a.hair === 'bun') o += '<circle cx="50" cy="22" r="8" fill="' + hc + '"/>';
+    if (a.hair === 'curly') o += [[30, 38], [38, 30], [48, 27], [58, 28], [67, 33], [72, 42], [27, 46]].map(function (c) { return '<circle cx="' + c[0] + '" cy="' + c[1] + '" r="7" fill="' + hc + '"/>'; }).join('');
+    o += '<circle cx="34" cy="56" r="4" fill="#FF8A8A" opacity=".35"/><circle cx="66" cy="56" r="4" fill="#FF8A8A" opacity=".35"/>';
+    o += '<circle cx="41" cy="49" r="3" fill="' + ink + '"/><circle cx="59" cy="49" r="3" fill="' + ink + '"/>';
+    o += '<path d="M42 58 Q50 65 58 58" fill="none" stroke="' + ink + '" stroke-width="2.5" stroke-linecap="round"/>';
+    if (a.glasses === 'round') o += '<circle cx="41" cy="49" r="7" fill="none" stroke="' + ink + '" stroke-width="2"/><circle cx="59" cy="49" r="7" fill="none" stroke="' + ink + '" stroke-width="2"/><path d="M48 49h4" stroke="' + ink + '" stroke-width="2"/>';
+    if (a.glasses === 'sun') o += '<rect x="32" y="44" width="15" height="10" rx="4" fill="' + ink + '"/><rect x="53" y="44" width="15" height="10" rx="4" fill="' + ink + '"/><path d="M47 48h6" stroke="' + ink + '" stroke-width="2"/>';
+    if (a.glasses === 'stars') o += '<polygon points="' + starPts(41, 49, 9) + '" fill="#FFC93C" stroke="#E0A400"/><polygon points="' + starPts(59, 49, 9) + '" fill="#FFC93C" stroke="#E0A400"/><circle cx="41" cy="50" r="2.5" fill="' + ink + '"/><circle cx="59" cy="50" r="2.5" fill="' + ink + '"/>';
+    if (a.hat === 'cap') o += '<path d="M26 38 C26 20 74 20 74 38 Z" fill="#1E5BD8"/><path d="M50 36 L84 37 C82 41 64 41 50 40 Z" fill="#1747AE"/>';
+    if (a.hat === 'party') o += '<path d="M38 32 L50 4 L62 32 Z" fill="#E03131"/><circle cx="50" cy="5" r="4" fill="#FFC93C"/><circle cx="46" cy="22" r="2" fill="#FFF"/><circle cx="54" cy="16" r="2" fill="#FFF"/>';
+    if (a.hat === 'wizard') o += '<path d="M30 32 L50 0 L70 32 Z" fill="#5F3DC4"/><ellipse cx="50" cy="32" rx="26" ry="5" fill="#4C2FA0"/><polygon points="' + starPts(50, 18, 5) + '" fill="#FFC93C"/>';
+    if (a.hat === 'crown') o += '<polygon points="30,32 33,13 42,23 50,8 58,23 67,13 70,32" fill="#FFC93C" stroke="#E0A400" stroke-width="1.5"/><circle cx="50" cy="26" r="2.5" fill="#E03131"/>';
+    if (a.extra === 'phones') o += '<path d="M26 48 C26 18 74 18 74 48" fill="none" stroke="' + ink + '" stroke-width="4"/><rect x="21" y="42" width="9" height="14" rx="4" fill="#E03131"/><rect x="70" y="42" width="9" height="14" rx="4" fill="#E03131"/>';
+    if (a.extra === 'bow') o += '<path d="M50 76 L40 70 L40 82 Z M50 76 L60 70 L60 82 Z" fill="#E03131"/><circle cx="50" cy="76" r="2.5" fill="#B02525"/>';
+    o += '</g>';
+    if (a.bg === 'gold') o += '<circle cx="50" cy="50" r="47" fill="none" stroke="#FFC93C" stroke-width="6"/>';
+    return '<svg viewBox="0 0 100 100" width="100%" height="100%" aria-hidden="true">' + o + '</svg>';
+  }
+  function unlocked(kidId) {
+    var lv = level(kidId).lv, out = [];
+    Object.keys(ITEMS).forEach(function (k) { ITEMS[k].list.forEach(function (it) { if (it[2] > 1 && it[2] <= lv) out.push(it); }); });
+    return out;
+  }
+  function nextUnlock(kidId) {
+    var lv = level(kidId).lv, best = null;
+    Object.keys(ITEMS).forEach(function (k) { ITEMS[k].list.forEach(function (it) { if (it[2] > lv && (!best || it[2] < best[2])) best = it; }); });
+    return best;
   }
 
   // ---------- מודל נתונים ----------
@@ -109,7 +175,8 @@
   function logOf(taskId, kidId, date) { var l = S.logs[logId(taskId, kidId, date)]; return l && !l.del ? l : null; }
   function statusOf(t, kidId, date) { var l = logOf(t.id, kidId, date); return l ? l.status : 'todo'; }
   function isDone(st) { return st === 'pending' || st === 'approved'; }
-  function ptsOf(t) { return (+t.points || 0) * (t.bonus ? 2 : 1); }
+  function ptsOf(t) { return t.duty ? 0 : (+t.points || 0) * (t.bonus ? 2 : 1); }
+  function ptsBadge(n) { return n ? '<span class="pts">+' + n + '</span>' : '<span class="pts grey">חובה</span>'; }
 
   function logs() { return alive(S.logs); }
   function earned(kidId, from, to) {
@@ -167,15 +234,15 @@
     var s = {
       v: 1,
       family: { name: familyName, goalTitle: 'ערב פיצה משפחתי', goalTarget: 800, u: t },
-      members: {}, tasks: {}, logs: {}, rewards: {}, reds: {}
+      members: {}, tasks: {}, logs: {}, rewards: {}, reds: {}, exams: {}
     };
     [['30 דק׳ זמן מסך', 100, 'tv'], ['לבחור את ארוחת הערב', 150, 'food'], ['להישאר ער עוד חצי שעה', 200, 'moon'], ['יום כיף עם אבא או אמא', 500, 'heart']]
       .forEach(function (r, i) { var id = uid() + i; s.rewards[id] = { id: id, title: r[0], cost: r[1], icon: r[2], c: t + i, u: t }; });
     var from = today();
-    [['לסדר את המיטה', 'home', 10, 'daily'], ['לפנות כלים מהשולחן', 'home', 10, 'daily'], ['שיעורי בית', 'school', 20, 'days', [0, 1, 2, 3, 4]], ['להכין תיק למחר', 'school', 10, 'days', [0, 1, 2, 3, 4]]]
+    [['לסדר את המיטה', 'home', 0, 'daily', null, true], ['לפנות כלים מהשולחן', 'home', 10, 'daily'], ['שיעורי בית', 'school', 20, 'days', [0, 1, 2, 3, 4]], ['להכין תיק למחר', 'school', 10, 'days', [0, 1, 2, 3, 4]]]
       .forEach(function (x, i) {
         var id = uid() + i;
-        s.tasks[id] = { id: id, title: x[0], cat: x[1], points: x[2], rec: x[3], days: x[4] || [], as: [], from: from, needsApproval: true, needsPhoto: false, bonus: false, c: t + i, u: t };
+        s.tasks[id] = { id: id, title: x[0], cat: x[1], points: x[2], rec: x[3], days: x[4] || [], as: [], from: from, duty: !!x[5], needsApproval: !x[5], needsPhoto: false, bonus: false, c: t + i, u: t };
       });
     return s;
   }
@@ -203,7 +270,7 @@
       v: 1,
       family: (b.family.u || 0) > (a.family.u || 0) ? b.family : a.family,
       members: mergeMaps(a.members, b.members), tasks: mergeMaps(a.tasks, b.tasks), logs: mergeMaps(a.logs, b.logs),
-      rewards: mergeMaps(a.rewards, b.rewards), reds: mergeMaps(a.reds, b.reds)
+      rewards: mergeMaps(a.rewards, b.rewards), reds: mergeMaps(a.reds, b.reds), exams: mergeMaps(a.exams, b.exams)
     };
   }
   function rpc(fn, body) {
@@ -262,7 +329,8 @@
   }
   function closeModal() { document.getElementById('modal').innerHTML = ''; }
   function av(m, size) {
-    return '<div class="av ' + (size || 'm') + '" style="background:' + esc(m.color || '#0F2A5F') + '">' + esc((m.name || '?').trim().charAt(0)) + '</div>';
+    if (m.role === 'kid') return '<div class="av ' + (size || 'm') + '" style="background:' + esc(m.color || '#1E5BD8') + '">' + avatarSvg(m) + '</div>';
+    return '<div class="av ' + (size || 'm') + '" style="background:' + esc(m.color || '#0F2A5F') + ';color:' + onColor(m.color || '#0F2A5F') + '">' + esc((m.name || '?').trim().charAt(0)) + '</div>';
   }
   function greet() { var h = new Date().getHours(); return h < 12 ? 'בוקר טוב' : h < 17 ? 'צהריים טובים' : 'ערב טוב'; }
   function nav(items) {
@@ -322,7 +390,7 @@
     }
     return '<div class="task' + (isDone(st) ? ' done' : '') + '">' + left +
       '<div class="txt"><span class="ttl">' + esc(t.title) + '</span><span class="sub ' + subCls + '">' + (t.needsPhoto && !isDone(st) ? ic('camera', 14).replace('class="ic"', 'class="ic" style="display:inline;vertical-align:-2px"') + ' ' : '') + esc(sub) + '</span></div>' +
-      '<span class="pts">+' + ptsOf(t) + '</span></div>';
+      ptsBadge(ptsOf(t)) + '</div>';
   }
   function vKidToday(k) {
     var d = today(), due = dueFor(k.id, d);
@@ -335,6 +403,19 @@
       '<div class="between"><span class="b">התקדמות היום</span><span class="muted">' + doneN + ' מתוך ' + due.length + '</span></div>' + bar(due.length ? doneN / due.length * 100 : 0) +
       '<div class="between"><span class="small b">יעד משפחתי: ' + esc(S.family.goalTitle) + '</span><span class="muted">' + fw + '/' + tg + '</span></div>' + bar(fw / tg * 100, 'y') + '</section>';
     if (due.length && doneN === due.length) html += '<div class="celebrate">כל המשימות של היום בוצעו. כל הכבוד!</div>';
+    var lvNow = level(k.id).lv;
+    if (lvNow > (k.seenLv || 1)) {
+      var nu = unlocked(k.id).filter(function (it) { return it[2] > (k.seenLv || 1); }).map(function (it) { return it[1]; });
+      html += '<button class="unlock" data-act="tab" data-id="me">' + starIc(28) + '<span><b>עלית לשלב ' + lvNow + '!</b>' + (nu.length ? ' נפתח: ' + esc(nu.join(', ')) : '') + '. לחצו להלביש את הדמות</span></button>';
+    }
+    if (k.remind && doneN < due.length) {
+      var hm = new Date().getHours() * 60 + new Date().getMinutes(), rp = k.remind.split(':');
+      if (hm >= (+rp[0]) * 60 + (+rp[1])) html += '<div class="note wait">' + ic('bell') + '<span>כבר אחרי ' + esc(k.remind) + ' ונשארו ' + (due.length - doneN) + ' משימות להיום</span></div>';
+    }
+    alive(S.exams).filter(function (e) { return e.kidId === k.id && e.date >= d && e.date <= addDays(d, 7); }).sort(function (a, b) { return a.date < b.date ? -1 : 1; }).forEach(function (e) {
+      var left = Math.round((pd(e.date) - pd(d)) / 864e5);
+      html += '<div class="note info">' + ic('exam') + '<span><b>מבחן ב' + esc(e.subject) + '</b> · ' + (left === 0 ? 'היום! בהצלחה' : left === 1 ? 'מחר' : 'בעוד ' + left + ' ימים (יום ' + DAY_N[dow(e.date)] + ')') + '</span></div>';
+    });
     bonus.forEach(function (t) {
       var st = statusOf(t, k.id, d);
       html += '<section class="bonus"><div class="bonus-ic">' + ic('sparkle', 24) + '</div><div class="txt" style="flex:1;display:flex;flex-direction:column;gap:2px"><span class="lbl">משימת הפתעה · נקודות כפולות</span><span style="font-weight:500">' + esc(t.title) + '</span></div>' +
@@ -366,6 +447,28 @@
     }).join('') + '</div></div>';
     return html;
   }
+  function vKidMe(k) {
+    var a = k.av || defAv(), lv = level(k.id), nx = nextUnlock(k.id);
+    var html = '<div class="main"><div class="me-head"><div class="av xl" style="background:' + esc(k.color) + '">' + avatarSvg(k) + '</div>' +
+      '<h1 style="font-size:24px">' + esc(k.name) + '</h1><span class="chip" style="background:var(--blue)">' + ic('trophy', 16) + 'שלב ' + lv.lv + '</span>' +
+      '<div style="width:100%">' + bar(lv.pct, 'y big') + '</div><span class="muted">' + (nx ? 'עוד ' + lv.toNext + ' נקודות לשלב הבא · בשלב ' + nx[2] + ' נפתח: ' + esc(nx[1]) : 'פתחת את כל הפריטים!') + '</span></div>';
+    function choice(key, val, label, lvReq, sw) {
+      var on = String(a[key]) === String(val), lock = lvReq && lvReq > lv.lv;
+      return '<button class="choice' + (sw ? ' sw' : '') + '" data-act="avSet" data-k="' + key + '" data-v="' + val + '" aria-pressed="' + on + '"' + (lock ? ' disabled' : '') + (sw ? ' style="background:' + sw + '" aria-label="' + label + '"' : '') + '>' + (sw ? '' : (lock ? ic('lock', 14) + ' שלב ' + lvReq : esc(label))) + '</button>';
+    }
+    html += '<section class="card"><span class="lbl">צבע עור</span><div class="choices">' + SKINS.map(function (c, i) { return choice('skin', i, 'גוון ' + (i + 1), 0, c); }).join('') + '</div>' +
+      '<span class="lbl">תסרוקת</span><div class="choices">' + HAIRS.map(function (h) { return choice('hair', h[0], h[1], 0); }).join('') + '</div>' +
+      '<span class="lbl">צבע שיער</span><div class="choices">' + HAIRC.map(function (c, i) { return choice('hairC', i, 'צבע שיער ' + (i + 1), 0, c); }).join('') + '</div></section>';
+    Object.keys(ITEMS).forEach(function (key) {
+      var g = ITEMS[key];
+      html += '<section class="card"><span class="lbl">' + g.t + '</span><div class="choices">' + (key === 'bg' ? '' : choice(key, '', 'בלי', 0)) +
+        g.list.map(function (it) { return choice(key, it[0], it[1], it[2]); }).join('') + '</div></section>';
+    });
+    html += '<section class="card"><span class="lbl">' + ic('bell', 16).replace('class="ic"', 'class="ic" style="display:inline;vertical-align:-3px"') + ' תזכורת יומית</span>' +
+      '<form data-form="remind" class="row" style="flex-direction:row;gap:10px"><input class="inp" type="time" name="time" value="' + esc(k.remind || '18:00') + '" style="width:130px" aria-label="שעת תזכורת"><button class="btn" type="submit" style="flex:1">הוספה ליומן בטלפון</button></form>' +
+      '<span class="hint">נוצרת תזכורת יומית ביומן של הטלפון. בנוסף, אחרי השעה הזו תופיע באפליקציה הודעה אם נשארו משימות.</span></section>';
+    return html + '</div>';
+  }
   function weekDots(k) {
     var ws = weekStart(today()), t = today(), graceUsed = false, out = '';
     for (var i = 0; i < 7; i++) {
@@ -382,7 +485,7 @@
         else if (!graceUsed) { graceUsed = true; cls += ' grace'; inner = 'חסד'; }
         else { cls += ' miss'; }
       }
-      out += '<div class="day' + (d === t ? ' now' : '') + '"><div class="' + cls + '"' + (cls.indexOf('full') >= 0 ? ' style="background:' + esc(k.color) + '"' : '') + '>' + inner + '</div>' + DAY_L[i] + '</div>';
+      out += '<div class="day' + (d === t ? ' now' : '') + '"><div class="' + cls + '"' + (cls.indexOf('full') >= 0 ? ' style="background:' + esc(k.color) + ';color:' + onColor(k.color) + '"' : '') + '>' + inner + '</div>' + DAY_L[i] + '</div>';
     }
     return '<div class="week">' + out + '</div>';
   }
@@ -435,7 +538,7 @@
     if (!n) html += '<div class="empty">אין מה לאשר כרגע</div>';
     pl.forEach(function (l) {
       var k = S.members[l.kidId] || { name: '?' };
-      html += '<article class="card"><div class="row">' + av(k, 's') + '<div class="txt" style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font-weight:500">' + esc(l.title) + '</span><span class="muted small">' + esc(k.name) + ' · ' + ago(l.c) + (l.date !== today() ? ' · ' + DAY_N[dow(l.date)] : '') + '</span></div><span class="pts">+' + l.points + '</span></div>' +
+      html += '<article class="card"><div class="row">' + av(k, 's') + '<div class="txt" style="flex:1;display:flex;flex-direction:column;gap:2px"><span style="font-weight:500">' + esc(l.title) + '</span><span class="muted small">' + esc(k.name) + ' · ' + ago(l.c) + (l.date !== today() ? ' · ' + DAY_N[dow(l.date)] : '') + '</span></div>' + ptsBadge(l.points) + '</div>' +
         (l.photo ? '<img class="proof" src="' + esc(l.photo) + '" alt="תמונת הוכחה מ' + esc(k.name) + '">' : '') +
         '<div class="btns"><button class="btn ok" data-act="approve" data-id="' + l.id + '">אישור</button><button class="btn ghost" data-act="rejectForm" data-id="' + l.id + '">להחזיר עם הערה</button></div></article>';
     });
@@ -484,14 +587,21 @@
   }
   function vParentTasks(p) {
     var all = alive(S.tasks).filter(function (t) { return !(t.rec === 'once' && t.date < today()); }).sort(byCreated);
-    var html = parentHero(p, 'משימות', all.length + ' משימות פעילות', '<button class="btn y block" data-act="taskForm">' + ic('plus', 18) + 'משימה חדשה</button>') + '<div class="main">';
+    var html = parentHero(p, 'משימות', all.length + ' משימות פעילות', '<div class="btns"><button class="btn y" data-act="taskForm">' + ic('plus', 18) + 'משימה חדשה</button><button class="btn" data-act="examForm">' + ic('exam', 18) + 'הכנה למבחן</button></div>') + '<div class="main">';
+    var ex = alive(S.exams).filter(function (e) { return e.date >= today(); }).sort(function (a, b) { return a.date < b.date ? -1 : 1; });
+    if (ex.length) {
+      html += '<h2 class="sec-title">' + ic('exam') + 'מבחנים קרובים</h2><div class="list">' + ex.map(function (e) {
+        var k = S.members[e.kidId] || { name: '?' };
+        return '<div class="item">' + av(k, 's') + '<div class="txt"><span class="ttl">' + esc(e.subject) + ' · ' + esc(k.name) + '</span><span class="muted small">יום ' + DAY_N[dow(e.date)] + ' ' + e.date.split('-').reverse().slice(0, 2).join('.') + ' · ' + e.stages + ' שלבי חזרה</span></div><button class="iconbtn light" data-act="delExam" data-id="' + e.id + '" aria-label="מחיקת המבחן">' + ic('x', 18) + '</button></div>';
+      }).join('') + '</div>';
+    }
     [['home', 'בבית', 'home'], ['school', 'בית ספר', 'book']].forEach(function (g) {
       var list = all.filter(function (t) { return (t.cat === 'school') === (g[0] === 'school'); });
       html += '<h2 class="sec-title">' + ic(g[2]) + g[1] + '</h2><div class="list">';
       if (!list.length) html += '<div class="empty">אין משימות</div>';
       list.forEach(function (t) {
         html += '<button class="item" data-act="taskForm" data-id="' + t.id + '" style="border:none;text-align:right;width:100%"><div class="txt"><span class="ttl">' + esc(t.title) + '</span><div class="tags"><span class="tag b">' + esc(recLabel(t)) + '</span><span class="tag">' + esc(asLabel(t)) + '</span>' +
-          (t.bonus ? '<span class="tag y">הפתעה ×2</span>' : '') + (t.needsPhoto ? '<span class="tag">תמונה</span>' : '') + (!t.needsApproval ? '<span class="tag">בלי אישור</span>' : '') + '</div></div><span class="pts">+' + ptsOf(t) + '</span></button>';
+          (t.bonus ? '<span class="tag y">הפתעה ×2</span>' : '') + (t.needsPhoto ? '<span class="tag">תמונה</span>' : '') + (!t.needsApproval ? '<span class="tag">בלי אישור</span>' : '') + '</div></div>' + ptsBadge(ptsOf(t)) + '</button>';
       });
       html += '</div>';
     });
@@ -543,16 +653,28 @@
     return '<form data-form="task" data-id="' + (id || '') + '"><h2>' + (id ? 'עריכת משימה' : 'משימה חדשה') + '</h2>' +
       '<div class="field"><label for="t-title">מה צריך לעשות?</label><input class="inp" id="t-title" name="title" required maxlength="60" value="' + esc(t.title || '') + '"></div>' +
       '<div class="field"><span class="lbl">סוג</span><div class="seg">' + seg('cat', 'home', 'בבית', t.cat !== 'school') + seg('cat', 'school', 'בית ספר', t.cat === 'school') + '</div></div>' +
-      '<div class="field"><label for="t-pts">נקודות</label><input class="inp" id="t-pts" name="points" type="number" inputmode="numeric" min="1" max="1000" required value="' + (t.points || 10) + '"></div>' +
+      '<div class="field pts-field"><label for="t-pts">נקודות</label><input class="inp" id="t-pts" name="points" type="number" inputmode="numeric" min="1" max="1000" required value="' + (t.points || 10) + '"></div>' +
       (ks.length ? '<div class="field"><span class="lbl">למי?</span><div class="seg">' + ks.map(function (k) { return '<label><input type="checkbox" name="as" value="' + k.id + '"' + (t.as && t.as.indexOf(k.id) >= 0 ? ' checked' : '') + '><span>' + esc(k.name) + '</span></label>'; }).join('') + '</div><span class="hint">בלי סימון = כל הילדים</span></div>' : '') +
       '<div class="field"><span class="lbl">מתי?</span><div class="seg">' + seg('rec', 'daily', 'כל יום', t.rec === 'daily') + seg('rec', 'days', 'ימים קבועים', t.rec === 'days') + seg('rec', 'once', 'פעם אחת', t.rec === 'once') + '</div></div>' +
       '<div class="seg days rec-days">' + DAY_L.map(function (l, i) { return '<label><input type="checkbox" name="day" value="' + i + '"' + ((t.days || []).indexOf(i) >= 0 ? ' checked' : '') + ' aria-label="יום ' + DAY_N[i] + '"><span>' + l + '</span></label>'; }).join('') + '</div>' +
       '<div class="field rec-once"><label for="t-date">תאריך</label><input class="inp" id="t-date" type="date" name="date" value="' + esc(t.date || today()) + '"></div>' +
       '<div class="field"><label for="t-note">הערה לילד (לא חובה)</label><input class="inp" id="t-note" name="note" maxlength="60" value="' + esc(t.note || '') + '" placeholder="למשל: עד 20:00"></div>' +
-      tog('needsApproval', 'צריך אישור הורה', t.needsApproval) + tog('needsPhoto', 'לצלם הוכחה', t.needsPhoto) + tog('bonus', 'משימת הפתעה (נקודות כפולות)', t.bonus) +
+      tog('duty', 'חובה בסיסית (בלי נקודות)', t.duty) + tog('needsApproval', 'צריך אישור הורה', t.needsApproval) + tog('needsPhoto', 'לצלם הוכחה', t.needsPhoto) + tog('bonus', 'משימת הפתעה (נקודות כפולות)', t.bonus) +
+      '<span class="hint">חובה בסיסית נספרת להתקדמות ולרצף, אבל לא מזכה בנקודות.</span>' +
       '<button class="btn block" type="submit">שמירה</button>' +
       (id ? '<button class="btn danger block" type="button" data-act="delTask" data-id="' + id + '">מחיקת המשימה</button>' : '') +
       '<button class="linkbtn" type="button" data-act="closeModal">ביטול</button></form>';
+  }
+  function examForm() {
+    var ks = kids();
+    if (!ks.length) return '<h2>הכנה למבחן</h2><p>קודם צריך להוסיף ילדים.</p><button class="btn block" data-act="closeModal">סגירה</button>';
+    return '<form data-form="exam"><h2>הכנה למבחן</h2>' +
+      '<div class="field"><span class="lbl">למי?</span><div class="seg">' + ks.map(function (k, i) { return seg('kid', k.id, esc(k.name), i === 0); }).join('') + '</div></div>' +
+      '<div class="field"><label for="e-sub">מקצוע</label><input class="inp" id="e-sub" name="subject" required maxlength="30" placeholder="למשל: מדעים"></div>' +
+      '<div class="field"><label for="e-date">תאריך המבחן</label><input class="inp" id="e-date" type="date" name="date" required min="' + addDays(today(), 1) + '" value="' + addDays(today(), 4) + '"></div>' +
+      '<div class="field"><span class="lbl">כמה ימי חזרה לפני?</span><div class="seg">' + [1, 2, 3, 4, 5].map(function (n) { return seg('stages', n, String(n), n === 3); }).join('') + '</div><span class="hint">כל יום חזרה הופך למשימה נפרדת (בלי שבת)</span></div>' +
+      '<div class="field"><label for="e-pts">נקודות לכל שלב</label><input class="inp" id="e-pts" name="points" type="number" inputmode="numeric" min="1" max="1000" required value="15"></div>' +
+      '<button class="btn block" type="submit">יצירת תוכנית חזרה</button><button class="linkbtn" type="button" data-act="closeModal">ביטול</button></form>';
   }
   function seg(name, val, label, on) { return '<label><input type="radio" name="' + name + '" value="' + val + '"' + (on ? ' checked' : '') + '><span>' + label + '</span></label>'; }
   function tog(name, label, on) { return '<label class="toggle"><span>' + label + '</span><input type="checkbox" name="' + name + '"' + (on ? ' checked' : '') + '></label>'; }
@@ -608,7 +730,7 @@
   function submitLog(t, photo) {
     var k = meM(), d = today(), id = logId(t.id, k.id, d), prev = S.logs[id];
     S.logs[id] = { id: id, taskId: t.id, kidId: k.id, date: d, title: t.title, points: ptsOf(t), status: t.needsApproval ? 'pending' : 'approved', photo: photo || null, note: null, c: prev && prev.c || now(), u: now() };
-    commit(t.needsApproval ? 'נשלח לאישור. כל הכבוד!' : '+' + ptsOf(t) + ' נקודות!');
+    commit(t.needsApproval ? 'נשלח לאישור. כל הכבוד!' : ptsOf(t) ? '+' + ptsOf(t) + ' נקודות!' : 'כל הכבוד!');
   }
   function compress(file) {
     return new Promise(function (res, rej) {
@@ -626,7 +748,12 @@
 
   var actions = {
     closeModal: closeModal,
-    tab: function (el) { ui.tab = el.dataset.id; render(); window.scrollTo(0, 0); },
+    tab: function (el) {
+      ui.tab = el.dataset.id;
+      var k = meM();
+      if (ui.tab === 'me' && k && k.role === 'kid') { var lv = level(k.id).lv; if ((k.seenLv || 1) < lv) { k.seenLv = lv; touch(k); save(); if (SYNC && code) syncNow(); } }
+      render(); window.scrollTo(0, 0);
+    },
     logout: function () { me = null; ls.del(K_ME); ui.pinFor = null; ui.tab = null; render(); },
     pick: function (el) {
       var m = S.members[el.dataset.id];
@@ -656,7 +783,7 @@
       S.reds[id] = { id: id, rewardId: r.id, kidId: k.id, title: r.title, cost: r.cost, status: 'pending', c: now(), u: now() };
       commit('הבקשה נשלחה להורים');
     },
-    approve: function (el) { var l = S.logs[el.dataset.id]; if (!l) return; l.status = 'approved'; l.photo = null; touch(l); commit('אושר: +' + l.points + ' ל' + ((S.members[l.kidId] || {}).name || '')); },
+    approve: function (el) { var l = S.logs[el.dataset.id]; if (!l) return; l.status = 'approved'; l.photo = null; touch(l); commit((l.points ? 'אושר: +' + l.points + ' ל' : 'אושר ל') + ((S.members[l.kidId] || {}).name || '')); },
     rejectForm: function (el) { openModal(rejectForm(el.dataset.id)); },
     redApprove: function (el) { var r = S.reds[el.dataset.id]; if (!r) return; r.status = 'approved'; touch(r); commit('הפרס אושר'); },
     redReject: function (el) { var r = S.reds[el.dataset.id]; if (!r) return; r.status = 'rejected'; touch(r); commit('הבקשה נדחתה והנקודות חזרו'); },
@@ -665,6 +792,19 @@
     memberForm: function (el) { openModal(memberForm(el.dataset.id, el.dataset.role)); },
     goalForm: function () { openModal(goalForm()); },
     pointsForm: function () { openModal(pointsForm()); },
+    examForm: function () { openModal(examForm()); },
+    delExam: function (el) { openModal(confirmBox('למחוק את המבחן ואת משימות החזרה שלו?', 'delExamYes', el.dataset.id, 'מחיקה')); },
+    delExamYes: function (el) {
+      var e = S.exams[el.dataset.id];
+      if (e) { touch(e).del = true; alive(S.tasks).forEach(function (t) { if (t.examId === e.id) touch(t).del = true; }); }
+      closeModal(); commit('המבחן נמחק');
+    },
+    avSet: function (el) {
+      var k = meM(); if (!k) return;
+      var a = k.av ? JSON.parse(JSON.stringify(k.av)) : defAv(), v = el.dataset.v;
+      a[el.dataset.k] = /^\d+$/.test(v) && (el.dataset.k === 'skin' || el.dataset.k === 'hairC') ? +v : v;
+      k.av = a; touch(k); commit();
+    },
     delTask: function (el) { openModal(confirmBox('למחוק את המשימה?', 'delTaskYes', el.dataset.id, 'מחיקה')); },
     delTaskYes: function (el) { var t = S.tasks[el.dataset.id]; if (t) { touch(t).del = true; } closeModal(); commit('המשימה נמחקה'); },
     delReward: function (el) { openModal(confirmBox('למחוק את הפרס?', 'delRewardYes', el.dataset.id, 'מחיקה')); },
@@ -724,10 +864,10 @@
     task: function (f) {
       var id = f.dataset.id || uid(), old = S.tasks[id] || {};
       var days = [].slice.call(f.querySelectorAll('input[name=day]:checked')).map(function (x) { return +x.value; });
-      var rec = f.querySelector('input[name=rec]:checked').value;
+      var rec = f.querySelector('input[name=rec]:checked').value, duty = f.elements.duty.checked;
       if (rec === 'days' && !days.length) return toast('בחרו לפחות יום אחד');
       S.tasks[id] = {
-        id: id, title: f.elements.title.value.trim(), cat: f.querySelector('input[name=cat]:checked').value, points: Math.max(1, +f.elements.points.value || 1),
+        id: id, title: f.elements.title.value.trim(), cat: f.querySelector('input[name=cat]:checked').value, points: duty ? 0 : Math.max(1, +f.elements.points.value || 1), duty: duty, examId: old.examId || null,
         as: [].slice.call(f.querySelectorAll('input[name=as]:checked')).map(function (x) { return x.value; }),
         rec: rec, days: days, date: f.elements.date.value || today(), note: f.elements.note.value.trim(),
         needsApproval: f.elements.needsApproval.checked, needsPhoto: f.elements.needsPhoto.checked, bonus: f.elements.bonus.checked,
@@ -745,10 +885,38 @@
       var id = f.dataset.id || uid(), old = S.members[id] || {}, role = f.dataset.role, pin = f.elements.pin.value.trim();
       if (pin && !/^\d{4}$/.test(pin)) return toast('הקוד צריך להיות 4 ספרות');
       var color = f.querySelector('input[name=color]:checked');
-      var m = { id: id, name: f.elements.name.value.trim(), role: role, color: color ? color.value : (old.color || COLORS[0]), pin: old.pin || null, mode: role === 'kid' ? f.querySelector('input[name=mode]:checked').value : null, c: old.c || now(), u: now() };
+      var m = { id: id, name: f.elements.name.value.trim(), role: role, av: old.av || (role === 'kid' ? defAv() : null), seenLv: old.seenLv || 1, remind: old.remind || null, color: color ? color.value : (old.color || COLORS[0]), pin: old.pin || null, mode: role === 'kid' ? f.querySelector('input[name=mode]:checked').value : null, c: old.c || now(), u: now() };
       if (pin) m.pin = (role === 'kid' && pin === '0000') ? null : pin;
       S.members[id] = m;
       closeModal(); commit(f.dataset.id ? 'עודכן' : m.name + ' נוסף/ה למשפחה');
+    },
+    exam: function (f) {
+      var kid = f.querySelector('input[name=kid]:checked').value, sub = f.elements.subject.value.trim(), date = f.elements.date.value;
+      var n = +f.querySelector('input[name=stages]:checked').value, pts = Math.max(1, +f.elements.points.value || 1);
+      if (!date || date <= today()) return toast('בחרו תאריך עתידי');
+      var days = [], d = addDays(date, -1);
+      while (days.length < n && d >= today()) { if (dow(d) !== 6) days.unshift(d); d = addDays(d, -1); }
+      if (!days.length) return toast('אין מספיק זמן לחזרה לפני המבחן');
+      var eid = uid(), t0 = now();
+      S.exams[eid] = { id: eid, kidId: kid, subject: sub, date: date, stages: days.length, c: t0, u: t0 };
+      days.forEach(function (day, i) {
+        var id = uid() + i;
+        S.tasks[id] = { id: id, title: 'חזרה למבחן ב' + sub, cat: 'school', points: pts, rec: 'once', days: [], date: day, as: [kid], from: today(), examId: eid,
+          note: 'שלב ' + (i + 1) + ' מתוך ' + days.length + ' · המבחן ביום ' + DAY_N[dow(date)], needsApproval: true, needsPhoto: false, bonus: false, duty: false, c: t0 + i, u: t0 };
+      });
+      closeModal(); commit('נוצרו ' + days.length + ' שלבי חזרה');
+    },
+    remind: function (f) {
+      var k = meM(), tm = f.elements.time.value || '18:00';
+      k.remind = tm; touch(k); commit('התזכורת נשמרה');
+      var p = tm.split(':'), d = new Date(); d.setHours(+p[0], +p[1], 0, 0); if (d < new Date()) d.setDate(d.getDate() + 1);
+      var dt = ds(d).replace(/-/g, '') + 'T' + p[0] + p[1] + '00';
+      var url = location.origin + location.pathname;
+      var ics = ['BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//kochvei-habayit//he', 'BEGIN:VEVENT', 'UID:' + uid() + '@kochvei', 'DTSTAMP:' + new Date().toISOString().replace(/[-:]/g, '').slice(0, 15) + 'Z',
+        'DTSTART;TZID=Asia/Jerusalem:' + dt, 'DURATION:PT10M', 'RRULE:FREQ=DAILY', 'SUMMARY:כוכבי הבית: לבדוק את המשימות', 'URL:' + url, 'DESCRIPTION:' + url,
+        'BEGIN:VALARM', 'TRIGGER:PT0M', 'ACTION:DISPLAY', 'DESCRIPTION:כוכבי הבית', 'END:VALARM', 'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
+      var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([ics], { type: 'text/calendar' })); a.download = 'kochvei-tizkoret.ics';
+      document.body.appendChild(a); a.click(); a.remove();
     },
     goal: function (f) {
       S.family.goalTitle = f.elements.title.value.trim(); S.family.goalTarget = Math.max(10, +f.elements.target.value || 10); touch(S.family);
@@ -807,9 +975,9 @@
     if (!S) html = vSetup();
     else if (!m || m.del) { me = null; html = vPicker(); }
     else if (m.role === 'kid') {
-      ui.tab = ['today', 'rewards', 'board'].indexOf(ui.tab) >= 0 ? ui.tab : 'today';
-      html = (ui.tab === 'rewards' ? vKidRewards(m) : ui.tab === 'board' ? vBoard() : vKidToday(m)) +
-        nav([['today', 'home', 'היום'], ['rewards', 'gift', 'פרסים'], ['board', 'trophy', 'טבלה']]);
+      ui.tab = ['today', 'rewards', 'board', 'me'].indexOf(ui.tab) >= 0 ? ui.tab : 'today';
+      html = (ui.tab === 'rewards' ? vKidRewards(m) : ui.tab === 'board' ? vBoard() : ui.tab === 'me' ? vKidMe(m) : vKidToday(m)) +
+        nav([['today', 'home', 'היום'], ['rewards', 'gift', 'פרסים'], ['board', 'trophy', 'טבלה'], ['me', 'user', 'הדמות שלי', level(m.id).lv > (m.seenLv || 1) ? '!' : '']]);
     } else {
       ui.tab = ['home', 'tasks', 'rewards', 'board', 'family'].indexOf(ui.tab) >= 0 ? ui.tab : 'home';
       var n = pendingLogs().length + pendingReds().length;
