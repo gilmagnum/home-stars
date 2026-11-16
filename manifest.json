@@ -1,0 +1,26 @@
+{
+  "name": "כוכבי הבית",
+  "short_name": "כוכבי הבית",
+  "description": "משימות, נקודות ופרסים לכל המשפחה",
+  "lang": "he",
+  "dir": "rtl",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F2F5FB",
+  "theme_color": "#1E5BD8",
+  "icons": [
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "icons/maskable.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
+    }
+  ]
+}
