@@ -7,7 +7,7 @@
   var SYNC = !!(CFG.supabaseUrl && CFG.supabaseKey);
   var K_STATE = 'hs:state', K_CODE = 'hs:code', K_ME = 'hs:me';
   var LEVEL_PTS = 150;
-  var COLORS = ['#1E5BD8', '#7C3AED', '#0E7C86', '#D9480F', '#C2255C', '#2B8A3E', '#0F2A5F'];
+  var COLORS = ['#1E5BD8', '#1971C2', '#364FC7', '#0F2A5F', '#7C3AED', '#5F3DC4', '#9C36B5', '#C2255C', '#A61E4D', '#E03131', '#D9480F', '#B35C00', '#5C940D', '#2B8A3E', '#087F5B', '#0E7C86', '#495057', '#212529'];
   var DAY_L = ['א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ש'];
   var DAY_N = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
   var RW_ICONS = { tv: 'זמן מסך', food: 'אוכל', moon: 'שעת שינה', heart: 'פינוק', film: 'סרט', ball: 'משחק', gift: 'מתנה', star: 'מיוחד' };
