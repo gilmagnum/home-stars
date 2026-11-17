@@ -987,6 +987,19 @@
     app.innerHTML = html;
   }
 
+  // ---------- כפתור "חזור" (אנדרואיד) ----------
+  var lastBack = 0;
+  function armBack() { try { history.pushState({ hsGuard: 1 }, ''); } catch (e) {} }
+  window.addEventListener('popstate', function () {
+    var m = meM(), def = m ? (m.role === 'parent' ? 'home' : 'today') : null;
+    if (document.getElementById('modal').innerHTML) { closeModal(); armBack(); return; }
+    if (ui.pinFor) { ui.pinFor = null; render(); armBack(); return; }
+    if (m && ui.tab && ui.tab !== def) { ui.tab = def; render(); window.scrollTo(0, 0); armBack(); return; }
+    if (now() - lastBack < 2000) { history.back(); return; }
+    lastBack = now(); toast('לחיצה נוספת על "חזור" תצא מהאפליקציה'); armBack();
+  });
+
   render();
+  armBack();
   if (SYNC && code && S) syncNow();
 })();
