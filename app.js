@@ -383,7 +383,7 @@
       '<div class="hero-txt"><span class="hero-title">' + greet() + ', ' + esc(k.name) + '</span><span class="hero-sub">יום ' + DAY_N[dow(today())] + '</span></div>' +
       '<div class="balance">' + starIc(18) + '<span>' + balance(k.id) + '</span></div>' +
       '<button class="iconbtn" data-act="logout" aria-label="החלפת משתמש">' + ic('logout') + '</button></div>' +
-      '<div class="chips">' + (stv ? '<span class="chip">' + ic('flame', 16) + 'רצף ' + stv + ' ימים</span>' : '') +
+      '<div class="chips">' + (stv ? '<span class="chip">' + ic('flame', 16) + (stv === 1 ? 'רצף של יום אחד' : 'רצף ' + stv + ' ימים')+'</span>' : '') +
       '<span class="chip">' + ic('trophy', 16) + 'שלב ' + lv.lv + ' · עוד ' + lv.toNext + ' לשלב הבא</span></div></header>';
   }
   function taskRow(t, kidId, date, fl) {
@@ -583,13 +583,15 @@
       html += '<article class="card" style="border:2px solid var(--yellow)"><div class="row">' + av(k, 's') + '<div style="flex:1;display:flex;flex-direction:column;gap:2px"><span class="small" style="color:var(--yellow-d);font-weight:500">בקשה למימוש פרס · ' + esc(k.name) + '</span><span style="font-weight:500">' + esc(r.title) + '</span></div><span class="pts grey">' + r.cost + '−</span></div>' +
         '<div class="btns"><button class="btn" data-act="redApprove" data-id="' + r.id + '">אישור</button><button class="btn ghost" data-act="redReject" data-id="' + r.id + '">לא עכשיו</button></div></article>';
     });
-    html += '<h2 class="sec-title">הילדים היום</h2><section class="card">';
-    if (!kids().length) html += '<p class="muted" style="margin:0">עוד לא הוספתם ילדים. <button class="linkbtn" data-act="tab" data-id="family">הוספת ילד/ה</button></p>';
+    html += '<h2 class="sec-title">' + ic('users') + 'הילדים היום</h2><div class="list">';
+    if (!kids().length) html += '<div class="empty">עוד לא הוספתם ילדים. <button class="linkbtn" data-act="tab" data-id="family">הוספת ילד/ה</button></div>';
     kids().forEach(function (k) {
-      var due = dueFor(k.id, today()), dn = due.filter(function (t) { return isDone(statusOf(t, k.id, today())); }).length;
-      html += '<div class="row"><span style="width:64px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(k.name) + '</span><div style="flex:1">' + bar(due.length ? dn / due.length * 100 : 0) + '</div><span class="muted" style="width:44px;text-align:left">' + dn + '/' + due.length + '</span></div>';
+      var due = dueFor(k.id, today()), dn = due.filter(function (t) { return isDone(statusOf(t, k.id, today())); }).length, stv = streak(k.id), pp = pendingPts(k.id);
+      html += '<button class="item kidcard" data-act="kidView" data-id="' + k.id + '">' + av(k, 'm') +
+        '<div class="txt"><div class="between"><span class="ttl">' + esc(k.name) + '</span><span class="muted small">' + dn + '/' + due.length + ' משימות</span></div>' + bar(due.length ? dn / due.length * 100 : 0) +
+        '<div class="tags"><span class="tag y">' + balance(k.id) + ' נק׳</span><span class="tag b">שלב ' + level(k.id).lv + '</span>' + (stv ? '<span class="tag">רצף ' + stv + '</span>' : '') + (pp ? '<span class="tag">+' + pp + ' ממתינות</span>' : '') + '</div></div></button>';
     });
-    html += '</section>' + weeklySummary() + '</div>';
+    html += '</div><p class="muted small" style="margin:-6px 0 0;text-align:center">לחיצה על ילד מציגה את כל הפרטים</p>' + weeklySummary() + '</div>';
     return html;
   }
   function weeklySummary() {
@@ -764,11 +766,42 @@
       '<span class="hint">הנקודות של כל הילדים נספרות יחד, והיעד מתאפס בכל יום ' + DAY_N[wsDay()] + '.</span>' +
       '<button class="btn block" type="submit">שמירה</button><button class="linkbtn" type="button" data-act="closeModal">ביטול</button></form>';
   }
-  function pointsForm() {
+  function stTag(st) {
+    return st === 'approved' ? '<span class="tag" style="background:var(--green-l);color:var(--green-d)">אושר</span>' : st === 'pending' ? '<span class="tag y">ממתין לאישור</span>' : st === 'rejected' ? '<span class="tag" style="background:var(--red-l);color:#8A2620">הוחזר</span>' : '<span class="tag">עוד לא</span>';
+  }
+  function kidView(id) {
+    var k = S.members[id]; if (!k) return '';
+    var d = today(), due = dueFor(id, d), fam = famFor(id, d), lv = level(id), c = selfCompare(id), stv = streak(id);
+    var html = '<div class="row" style="gap:14px">' + av(k, 'l') + '<div style="display:flex;flex-direction:column;gap:4px"><h2>' + esc(k.name) + '</h2><div class="tags"><span class="tag y">' + balance(id) + ' נק׳ ביתרה</span><span class="tag b">שלב ' + lv.lv + '</span>' + (stv ? '<span class="tag">' + (stv === 1 ? 'רצף של יום אחד' : 'רצף ' + stv + ' ימים') + '</span>' : '') + '</div></div></div>' +
+      '<div class="tags"><span class="tag">' + c.cur + ' נק׳ השבוע</span>' + (c.pct !== null ? '<span class="tag">' + (c.pct >= 0 ? '↑ ' : '') + c.pct + '% משבוע שעבר</span>' : '') + (pendingPts(id) ? '<span class="tag y">+' + pendingPts(id) + ' ממתינות לאישור</span>' : '') + '<span class="tag">נצבר בסך הכול: ' + earned(id) + '</span></div>';
+    html += '<h3 style="font-size:16px;margin-top:6px">המשימות של היום</h3><div class="list">';
+    if (!due.length && !fam.length) html += '<div class="muted">אין משימות להיום</div>';
+    due.forEach(function (t) {
+      var st = statusOf(t, id, d);
+      html += '<div class="item" style="background:var(--bg)"><div class="txt"><span class="ttl">' + esc(t.title) + '</span>' + (t.subs && t.subs.length && !isDone(st) ? '<span class="muted small">' + subsDone(t, id, d).length + ' מתוך ' + t.subs.length + ' שלבים</span>' : '') + '</div>' + stTag(st) + '</div>';
+    });
+    fam.forEach(function (t) {
+      var l = famLog(t.id, d), who = l && S.members[l.kidId];
+      html += '<div class="item" style="background:var(--bg)"><div class="txt"><span class="ttl">' + esc(t.title) + '</span><span class="muted small">משפחתית' + (l && l.kidId !== id && isDone(l.status) ? ' · בוצע על ידי ' + esc(who ? who.name : '?') : '') + '</span></div>' + stTag(l && l.kidId === id ? l.status : 'todo') + '</div>';
+    });
+    html += '</div><h3 style="font-size:16px;margin-top:6px">פעילות אחרונה</h3><div class="list">';
+    var hist = logs().filter(function (l) { return l.kidId === id; }).sort(function (a, b) { return (b.u || 0) - (a.u || 0); }).slice(0, 8);
+    var rds = alive(S.reds).filter(function (r) { return r.kidId === id; }).sort(function (a, b) { return (b.u || 0) - (a.u || 0); }).slice(0, 4);
+    if (!hist.length && !rds.length) html += '<div class="muted">עדיין אין פעילות</div>';
+    hist.forEach(function (l) {
+      html += '<div class="item" style="background:var(--bg)"><div class="txt"><span class="ttl">' + esc(l.title) + '</span><span class="muted small">' + DAY_N[dow(l.date)] + ' ' + l.date.split('-').reverse().slice(0, 2).join('.') + '</span></div>' + stTag(l.status) + (l.points ? '<span class="pts">+' + l.points + '</span>' : '') + '</div>';
+    });
+    rds.forEach(function (r) {
+      html += '<div class="item" style="background:var(--bg)"><div class="txt"><span class="ttl">פרס: ' + esc(r.title) + '</span><span class="muted small">' + ago(r.u || r.c) + '</span></div>' + stTag(r.status === 'rejected' ? 'rejected' : r.status) + '<span class="pts grey">' + r.cost + '−</span></div>';
+    });
+    html += '</div><div class="btns" style="margin-top:6px"><button class="btn y" data-act="pointsForm" data-id="' + id + '">' + ic('star', 18) + 'נקודות בונוס</button><button class="btn ghost" data-act="closeModal">סגירה</button></div>';
+    return html;
+  }
+  function pointsForm(pre) {
     var ks = kids();
     if (!ks.length) return '<h2>נקודות בונוס</h2><p>קודם צריך להוסיף ילדים.</p><button class="btn block" data-act="closeModal">סגירה</button>';
     return '<form data-form="points"><h2>נקודות בונוס</h2>' +
-      '<div class="field"><span class="lbl">למי?</span><div class="seg">' + ks.map(function (k, i) { return seg('kid', k.id, esc(k.name), i === 0); }).join('') + '</div></div>' +
+      '<div class="field"><span class="lbl">למי?</span><div class="seg">' + ks.map(function (k, i) { return seg('kid', k.id, esc(k.name), pre ? k.id === pre : i === 0); }).join('') + '</div></div>' +
       '<div class="field"><label for="p-n">כמה נקודות?</label><input class="inp" id="p-n" name="n" type="number" inputmode="numeric" min="1" max="1000" required value="10"></div>' +
       '<div class="field"><label for="p-why">על מה?</label><input class="inp" id="p-why" name="why" required maxlength="50" placeholder="למשל: עזר לאח הקטן"></div>' +
       '<button class="btn y block" type="submit">הענקה</button><button class="linkbtn" type="button" data-act="closeModal">ביטול</button></form>';
@@ -868,7 +901,8 @@
       commit();
     },
     resetForm: function () { openModal(resetForm()); },
-    pointsForm: function () { openModal(pointsForm()); },
+    pointsForm: function (el) { openModal(pointsForm(el && el.dataset.id)); },
+    kidView: function (el) { openModal(kidView(el.dataset.id)); },
     examForm: function () { openModal(examForm()); },
     delExam: function (el) { openModal(confirmBox('למחוק את המבחן ואת משימות החזרה שלו?', 'delExamYes', el.dataset.id, 'מחיקה')); },
     delExamYes: function (el) {
