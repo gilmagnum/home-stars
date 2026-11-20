@@ -38,7 +38,8 @@
   function pd(s) { var p = s.split('-'); return new Date(+p[0], +p[1] - 1, +p[2]); }
   function addDays(s, n) { var d = pd(s); d.setDate(d.getDate() + n); return ds(d); }
   function today() { return ds(new Date()); }
-  function weekStart(s) { var d = pd(s); d.setDate(d.getDate() - d.getDay()); return ds(d); }
+  function wsDay() { return (S && S.family && +S.family.weekStart) || 0; }
+  function weekStart(s) { var d = pd(s); d.setDate(d.getDate() - ((d.getDay() - wsDay() + 7) % 7)); return ds(d); }
   function dow(s) { return pd(s).getDay(); }
   function genCode() {
     var a = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789', out = '';
@@ -169,8 +170,13 @@
   }
   function assigned(t, kidId) { return !t.as || !t.as.length || t.as.indexOf(kidId) >= 0; }
   function dueFor(kidId, date) {
-    return alive(S.tasks).filter(function (t) { return assigned(t, kidId) && isDue(t, date); }).sort(byCreated);
+    return alive(S.tasks).filter(function (t) { return t.scope !== 'family' && assigned(t, kidId) && isDue(t, date); }).sort(byCreated);
   }
+  function famFor(kidId, date) {
+    return alive(S.tasks).filter(function (t) { return t.scope === 'family' && assigned(t, kidId) && isDue(t, date); }).sort(byCreated);
+  }
+  function famId(taskId, date) { return taskId + '_family_' + date; }
+  function famLog(taskId, date) { var l = S.logs[famId(taskId, date)]; return l && !l.del ? l : null; }
   function logId(taskId, kidId, date) { return taskId + '_' + kidId + '_' + date; }
   function logOf(taskId, kidId, date) { var l = S.logs[logId(taskId, kidId, date)]; return l && !l.del ? l : null; }
   function statusOf(t, kidId, date) { var l = logOf(t.id, kidId, date); return l ? l.status : 'todo'; }
@@ -378,19 +384,29 @@
       '<div class="chips">' + (stv ? '<span class="chip">' + ic('flame', 16) + 'רצף ' + stv + ' ימים</span>' : '') +
       '<span class="chip">' + ic('trophy', 16) + 'שלב ' + lv.lv + ' · עוד ' + lv.toNext + ' לשלב הבא</span></div></header>';
   }
-  function taskRow(t, kidId, date) {
-    var l = logOf(t.id, kidId, date), st = l ? l.status : 'todo';
+  function taskRow(t, kidId, date, fl) {
+    var l = t.scope === 'family' ? (fl === undefined ? famLog(t.id, date) : fl) : logOf(t.id, kidId, date), st = l ? l.status : 'todo';
     var left, sub, subCls = '';
     if (st === 'approved') { left = '<span class="st ok"><i>' + ic('check', 18) + '</i></span>'; sub = 'אושר'; }
     else if (st === 'pending') { left = '<button class="st wait" data-act="untick" data-id="' + t.id + '" aria-label="ביטול: ' + esc(t.title) + '"><i>' + ic('clock', 18) + '</i></button>'; sub = 'ממתין לאישור הורה'; subCls = 'warn'; }
     else {
       left = '<button class="tick" data-act="tick" data-id="' + t.id + '" aria-label="סיימתי: ' + esc(t.title) + '"><span></span></button>';
       if (st === 'rejected') { sub = 'הוחזר' + (l.note ? ': ' + l.note : '') + ' · אפשר לנסות שוב'; subCls = 'bad'; }
-      else sub = (t.note ? t.note + ' · ' : '') + (t.needsPhoto ? 'צריך לצלם' : (t.cat === 'school' ? 'בית ספר' : 'בבית'));
+      else sub = (t.note ? t.note + ' · ' : '') + (t.needsPhoto ? 'צריך לצלם' : t.scope === 'family' ? 'משימה משפחתית · מי שמבצע ראשון מקבל' : (t.cat === 'school' ? 'בית ספר' : 'בבית'));
     }
     return '<div class="task' + (isDone(st) ? ' done' : '') + '">' + left +
       '<div class="txt"><span class="ttl">' + esc(t.title) + '</span><span class="sub ' + subCls + '">' + (t.needsPhoto && !isDone(st) ? ic('camera', 14).replace('class="ic"', 'class="ic" style="display:inline;vertical-align:-2px"') + ' ' : '') + esc(sub) + '</span></div>' +
       ptsBadge(ptsOf(t)) + '</div>';
+  }
+  function famRow(t, k, date) {
+    var l = famLog(t.id, date), mine = l && l.kidId === k.id, st = l ? l.status : 'todo';
+    if (l && !mine && isDone(st)) {
+      var who = S.members[l.kidId] || { name: '?' };
+      return '<div class="task done"><span class="st ok"><i style="background:#9AA3B8">' + ic('check', 18) + '</i></span><div class="txt"><span class="ttl">' + esc(t.title) + '</span><span class="sub">בוצע על ידי ' + esc(who.name) + '</span></div>' + ptsBadge(ptsOf(t)) + '</div>';
+    }
+    if (l && !mine && st === 'rejected') l = null;
+    var row = taskRow(t, k.id, date, l);
+    return row;
   }
   function vKidToday(k) {
     var d = today(), due = dueFor(k.id, d);
@@ -421,9 +437,11 @@
       html += '<section class="bonus"><div class="bonus-ic">' + ic('sparkle', 24) + '</div><div class="txt" style="flex:1;display:flex;flex-direction:column;gap:2px"><span class="lbl">משימת הפתעה · נקודות כפולות</span><span style="font-weight:500">' + esc(t.title) + '</span></div>' +
         (isDone(st) ? '<span class="pts grey">' + (st === 'approved' ? 'אושר' : 'ממתין') + '</span>' : '<button class="btn y sm" data-act="tick" data-id="' + t.id + '">+' + ptsOf(t) + '</button>') + '</section>';
     });
-    if (!due.length) html += '<div class="empty">אין משימות להיום. יום חופשי!</div>';
+    var fam = famFor(k.id, d);
+    if (!due.length && !fam.length) html += '<div class="empty">אין משימות להיום. יום חופשי!</div>';
     if (home.length) html += '<h2 class="sec-title">' + ic('home') + 'בבית</h2><div class="list">' + home.map(function (t) { return taskRow(t, k.id, d); }).join('') + '</div>';
     if (school.length) html += '<h2 class="sec-title">' + ic('book') + 'בית ספר</h2><div class="list">' + school.map(function (t) { return taskRow(t, k.id, d); }).join('') + '</div>';
+    if (fam.length) html += '<h2 class="sec-title">' + ic('users') + 'משימות משפחתיות</h2><p class="muted small" style="margin:-6px 0 0">מי שמבצע ראשון מקבל את הנקודות</p><div class="list">' + fam.map(function (t) { return famRow(t, k, d); }).join('') + '</div>';
     var pp = pendingPts(k.id);
     if (pp) html += '<p class="muted" style="text-align:center;margin:0">עוד ' + pp + ' נקודות מחכות לאישור</p>';
     return html + '</div>';
@@ -485,7 +503,7 @@
         else if (!graceUsed) { graceUsed = true; cls += ' grace'; inner = 'חסד'; }
         else { cls += ' miss'; }
       }
-      out += '<div class="day' + (d === t ? ' now' : '') + '"><div class="' + cls + '"' + (cls.indexOf('full') >= 0 ? ' style="background:' + esc(k.color) + ';color:' + onColor(k.color) + '"' : '') + '>' + inner + '</div>' + DAY_L[i] + '</div>';
+      out += '<div class="day' + (d === t ? ' now' : '') + '"><div class="' + cls + '"' + (cls.indexOf('full') >= 0 ? ' style="background:' + esc(k.color) + ';color:' + onColor(k.color) + '"' : '') + '>' + inner + '</div>' + DAY_L[(wsDay() + i) % 7] + '</div>';
     }
     return '<div class="week">' + out + '</div>';
   }
@@ -601,7 +619,7 @@
       if (!list.length) html += '<div class="empty">אין משימות</div>';
       list.forEach(function (t) {
         html += '<button class="item" data-act="taskForm" data-id="' + t.id + '" style="border:none;text-align:right;width:100%"><div class="txt"><span class="ttl">' + esc(t.title) + '</span><div class="tags"><span class="tag b">' + esc(recLabel(t)) + '</span><span class="tag">' + esc(asLabel(t)) + '</span>' +
-          (t.bonus ? '<span class="tag y">הפתעה ×2</span>' : '') + (t.needsPhoto ? '<span class="tag">תמונה</span>' : '') + (!t.needsApproval ? '<span class="tag">בלי אישור</span>' : '') + '</div></div>' + ptsBadge(ptsOf(t)) + '</button>';
+          (t.scope === 'family' ? '<span class="tag y">משפחתית</span>' : '') + (t.bonus ? '<span class="tag y">הפתעה ×2</span>' : '') + (t.needsPhoto ? '<span class="tag">תמונה</span>' : '') + (!t.needsApproval ? '<span class="tag">בלי אישור</span>' : '') + '</div></div>' + ptsBadge(ptsOf(t)) + '</button>';
       });
       html += '</div>';
     });
@@ -631,7 +649,8 @@
       html += '<button class="item" data-act="memberForm" data-id="' + m.id + '" style="border:none;text-align:right;width:100%">' + av(m, 's') + '<div class="txt"><span class="ttl">' + esc(m.name) + '</span><span class="muted small">' + sub + '</span></div>' + ic('edit', 18) + '</button>';
     });
     html += '</div><div class="btns"><button class="btn" data-act="memberForm" data-role="kid">' + ic('plus', 18) + 'ילד/ה</button><button class="btn ghost" data-act="memberForm" data-role="parent">' + ic('plus', 18) + 'הורה</button></div>';
-    html += '<h2 class="sec-title">' + ic('trophy') + 'יעד משפחתי שבועי</h2><button class="item" data-act="goalForm" style="border:none;text-align:right;width:100%"><div class="txt"><span class="ttl">' + esc(S.family.goalTitle) + '</span><span class="muted small">' + S.family.goalTarget + ' נקודות · מתאפס בכל יום ראשון</span></div>' + ic('edit', 18) + '</button>';
+    html += '<h2 class="sec-title">' + ic('trophy') + 'יעד משפחתי שבועי</h2><button class="item" data-act="goalForm" style="border:none;text-align:right;width:100%"><div class="txt"><span class="ttl">' + esc(S.family.goalTitle) + '</span><span class="muted small">' + S.family.goalTarget + ' נקודות · מתאפס בכל יום ' + DAY_N[wsDay()] + '</span></div>' + ic('edit', 18) + '</button>';
+    html += '<h2 class="sec-title">' + ic('clock') + 'הגדרות</h2><button class="item" data-act="weekForm" style="border:none;text-align:right;width:100%"><div class="txt"><span class="ttl">השבוע מתחיל ביום ' + DAY_N[wsDay()] + '</span><span class="muted small">ביום הזה מתאפסים היעד המשפחתי וטבלת השבוע. משימות יומיות מתחדשות כל לילה בחצות.</span></div>' + ic('edit', 18) + '</button>';
     html += '<h2 class="sec-title">' + ic('cloud') + 'סנכרון וגיבוי</h2><section class="card">';
     if (SYNC) {
       var link = location.origin + location.pathname + '?f=' + encodeURIComponent(code);
@@ -642,6 +661,7 @@
       html += '<span class="muted">מצב מקומי: הנתונים שמורים רק במכשיר הזה. כדי לעבוד מכמה טלפונים צריך לחבר Supabase.</span>';
     }
     html += '<div class="btns"><button class="btn ghost sm" data-act="export">גיבוי לקובץ</button><button class="btn ghost sm" data-act="import">שחזור מגיבוי</button></div></section>';
+    html += '<button class="btn danger block" data-act="resetForm">איפוס נתונים והתחלה מחדש</button>';
     html += '<button class="btn danger block" data-act="leave">ניתוק המכשיר מהמשפחה</button></div>';
     return html;
   }
@@ -653,6 +673,7 @@
     return '<form data-form="task" data-id="' + (id || '') + '"><h2>' + (id ? 'עריכת משימה' : 'משימה חדשה') + '</h2>' +
       '<div class="field"><label for="t-title">מה צריך לעשות?</label><input class="inp" id="t-title" name="title" required maxlength="60" value="' + esc(t.title || '') + '"></div>' +
       '<div class="field"><span class="lbl">סוג</span><div class="seg">' + seg('cat', 'home', 'בבית', t.cat !== 'school') + seg('cat', 'school', 'בית ספר', t.cat === 'school') + '</div></div>' +
+      '<div class="field"><span class="lbl">למי שייכת המשימה?</span><div class="seg">' + seg('scope', 'personal', 'אישית: כל ילד בנפרד', t.scope !== 'family') + seg('scope', 'family', 'משפחתית: מי שמבצע ראשון', t.scope === 'family') + '</div></div>' +
       '<div class="field pts-field"><label for="t-pts">נקודות</label><input class="inp" id="t-pts" name="points" type="number" inputmode="numeric" min="1" max="1000" required value="' + (t.points || 10) + '"></div>' +
       (ks.length ? '<div class="field"><span class="lbl">למי?</span><div class="seg">' + ks.map(function (k) { return '<label><input type="checkbox" name="as" value="' + k.id + '"' + (t.as && t.as.indexOf(k.id) >= 0 ? ' checked' : '') + '><span>' + esc(k.name) + '</span></label>'; }).join('') + '</div><span class="hint">בלי סימון = כל הילדים</span></div>' : '') +
       '<div class="field"><span class="lbl">מתי?</span><div class="seg">' + seg('rec', 'daily', 'כל יום', t.rec === 'daily') + seg('rec', 'days', 'ימים קבועים', t.rec === 'days') + seg('rec', 'once', 'פעם אחת', t.rec === 'once') + '</div></div>' +
@@ -675,6 +696,22 @@
       '<div class="field"><span class="lbl">כמה ימי חזרה לפני?</span><div class="seg">' + [1, 2, 3, 4, 5].map(function (n) { return seg('stages', n, String(n), n === 3); }).join('') + '</div><span class="hint">כל יום חזרה הופך למשימה נפרדת (בלי שבת)</span></div>' +
       '<div class="field"><label for="e-pts">נקודות לכל שלב</label><input class="inp" id="e-pts" name="points" type="number" inputmode="numeric" min="1" max="1000" required value="15"></div>' +
       '<button class="btn block" type="submit">יצירת תוכנית חזרה</button><button class="linkbtn" type="button" data-act="closeModal">ביטול</button></form>';
+  }
+  function weekForm() {
+    return '<form data-form="week"><h2>באיזה יום מתחיל השבוע?</h2>' +
+      '<div class="seg">' + DAY_N.map(function (n, i) { return seg('ws', i, n, i === wsDay()); }).join('') + '</div>' +
+      '<span class="hint">ביום הזה מתאפסים היעד המשפחתי, טבלת השבוע וההשוואה לשבוע שעבר. הנקודות שהילדים צברו נשארות.</span>' +
+      '<button class="btn block" type="submit">שמירה</button><button class="linkbtn" type="button" data-act="closeModal">ביטול</button></form>';
+  }
+  function resetForm() {
+    return '<form data-form="reset"><h2>איפוס נתונים</h2><p class="muted" style="margin:0">בחרו מה למחוק. בני המשפחה וההגדרות נשארים, אלא אם תסמנו אחרת. אי אפשר לבטל את הפעולה.</p>' +
+      tog('progress', 'נקודות, היסטוריה ובקשות פרסים (כולם מתחילים מ-0)', true) +
+      tog('tasks', 'כל המשימות (כולל משימות הדוגמה)', true) +
+      tog('exams', 'מבחנים ושלבי חזרה', true) +
+      tog('rewards', 'פרסים בחנות', false) +
+      tog('kids', 'גם הילדים (נשארים רק ההורים)', false) +
+      '<div class="field"><label for="rs-pin">הקוד שלך לאישור</label><input class="inp pin" id="rs-pin" name="pin" inputmode="numeric" pattern="[0-9]{4}" maxlength="4" autocomplete="off" required></div>' +
+      '<button class="btn danger block" type="submit">איפוס</button><button class="linkbtn" type="button" data-act="closeModal">ביטול</button></form>';
   }
   function seg(name, val, label, on) { return '<label><input type="radio" name="' + name + '" value="' + val + '"' + (on ? ' checked' : '') + '><span>' + label + '</span></label>'; }
   function tog(name, label, on) { return '<label class="toggle"><span>' + label + '</span><input type="checkbox" name="' + name + '"' + (on ? ' checked' : '') + '></label>'; }
@@ -704,7 +741,7 @@
     return '<form data-form="goal"><h2>יעד משפחתי שבועי</h2>' +
       '<div class="field"><label for="g-title">מה מקבלים כשמגיעים ליעד?</label><input class="inp" id="g-title" name="title" required maxlength="40" value="' + esc(S.family.goalTitle) + '"></div>' +
       '<div class="field"><label for="g-t">כמה נקודות צריך לצבור יחד?</label><input class="inp" id="g-t" name="target" type="number" inputmode="numeric" min="10" max="100000" required value="' + S.family.goalTarget + '"></div>' +
-      '<span class="hint">הנקודות של כל הילדים נספרות יחד, והיעד מתאפס בכל יום ראשון.</span>' +
+      '<span class="hint">הנקודות של כל הילדים נספרות יחד, והיעד מתאפס בכל יום ' + DAY_N[wsDay()] + '.</span>' +
       '<button class="btn block" type="submit">שמירה</button><button class="linkbtn" type="button" data-act="closeModal">ביטול</button></form>';
   }
   function pointsForm() {
@@ -728,7 +765,8 @@
 
   // ---------- פעולות ----------
   function submitLog(t, photo) {
-    var k = meM(), d = today(), id = logId(t.id, k.id, d), prev = S.logs[id];
+    var k = meM(), d = today(), fam = t.scope === 'family', id = fam ? famId(t.id, d) : logId(t.id, k.id, d), prev = S.logs[id];
+    if (fam && prev && !prev.del && prev.kidId !== k.id && isDone(prev.status)) { render(); return toast('מישהו אחר כבר ביצע את המשימה'); }
     S.logs[id] = { id: id, taskId: t.id, kidId: k.id, date: d, title: t.title, points: ptsOf(t), status: t.needsApproval ? 'pending' : 'approved', photo: photo || null, note: null, c: prev && prev.c || now(), u: now() };
     commit(t.needsApproval ? 'נשלח לאישור. כל הכבוד!' : ptsOf(t) ? '+' + ptsOf(t) + ' נקודות!' : 'כל הכבוד!');
   }
@@ -768,8 +806,8 @@
       submitLog(t);
     },
     untick: function (el) {
-      var l = S.logs[logId(el.dataset.id, me, today())];
-      if (l && l.status === 'pending') { touch(l).del = true; commit('בוטל'); }
+      var t = S.tasks[el.dataset.id], l = t && t.scope === 'family' ? famLog(t.id, today()) : S.logs[logId(el.dataset.id, me, today())];
+      if (l && l.status === 'pending' && l.kidId === me) { touch(l).del = true; commit('בוטל'); }
     },
     redeem: function (el) {
       var r = S.rewards[el.dataset.id];
@@ -791,6 +829,8 @@
     rewardForm: function (el) { openModal(rewardForm(el.dataset.id)); },
     memberForm: function (el) { openModal(memberForm(el.dataset.id, el.dataset.role)); },
     goalForm: function () { openModal(goalForm()); },
+    weekForm: function () { openModal(weekForm()); },
+    resetForm: function () { openModal(resetForm()); },
     pointsForm: function () { openModal(pointsForm()); },
     examForm: function () { openModal(examForm()); },
     delExam: function (el) { openModal(confirmBox('למחוק את המבחן ואת משימות החזרה שלו?', 'delExamYes', el.dataset.id, 'מחיקה')); },
@@ -867,7 +907,7 @@
       var rec = f.querySelector('input[name=rec]:checked').value, duty = f.elements.duty.checked;
       if (rec === 'days' && !days.length) return toast('בחרו לפחות יום אחד');
       S.tasks[id] = {
-        id: id, title: f.elements.title.value.trim(), cat: f.querySelector('input[name=cat]:checked').value, points: duty ? 0 : Math.max(1, +f.elements.points.value || 1), duty: duty, examId: old.examId || null,
+        id: id, title: f.elements.title.value.trim(), cat: f.querySelector('input[name=cat]:checked').value, points: duty ? 0 : Math.max(1, +f.elements.points.value || 1), duty: duty, examId: old.examId || null, scope: f.querySelector('input[name=scope]:checked').value,
         as: [].slice.call(f.querySelectorAll('input[name=as]:checked')).map(function (x) { return x.value; }),
         rec: rec, days: days, date: f.elements.date.value || today(), note: f.elements.note.value.trim(),
         needsApproval: f.elements.needsApproval.checked, needsPhoto: f.elements.needsPhoto.checked, bonus: f.elements.bonus.checked,
@@ -917,6 +957,22 @@
         'BEGIN:VALARM', 'TRIGGER:PT0M', 'ACTION:DISPLAY', 'DESCRIPTION:כוכבי הבית', 'END:VALARM', 'END:VEVENT', 'END:VCALENDAR'].join('\r\n');
       var a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([ics], { type: 'text/calendar' })); a.download = 'kochvei-tizkoret.ics';
       document.body.appendChild(a); a.click(); a.remove();
+    },
+    week: function (f) {
+      S.family.weekStart = +f.querySelector('input[name=ws]:checked').value; touch(S.family);
+      closeModal(); commit('השבוע מתחיל עכשיו ביום ' + DAY_N[S.family.weekStart]);
+    },
+    reset: function (f) {
+      var p = meM();
+      if (!p || f.elements.pin.value !== p.pin) { toast('קוד שגוי'); f.elements.pin.value = ''; return; }
+      var o = { progress: f.elements.progress.checked, tasks: f.elements.tasks.checked, exams: f.elements.exams.checked, rewards: f.elements.rewards.checked, kids: f.elements.kids.checked };
+      var kill = function (x) { if (x && !x.del) touch(x).del = true; };
+      if (o.progress) { alive(S.logs).forEach(kill); alive(S.reds).forEach(kill); kids().forEach(function (k) { k.seenLv = 1; touch(k); }); }
+      if (o.tasks) alive(S.tasks).forEach(kill);
+      if (o.exams) { alive(S.exams).forEach(kill); alive(S.tasks).forEach(function (t) { if (t.examId) kill(t); }); }
+      if (o.rewards) alive(S.rewards).forEach(kill);
+      if (o.kids) { kids().forEach(kill); alive(S.logs).forEach(kill); alive(S.reds).forEach(kill); }
+      closeModal(); commit('האיפוס בוצע');
     },
     goal: function (f) {
       S.family.goalTitle = f.elements.title.value.trim(); S.family.goalTarget = Math.max(10, +f.elements.target.value || 10); touch(S.family);
