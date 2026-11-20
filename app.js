@@ -168,7 +168,7 @@
     if (t.rec === 'days') return (t.days || []).indexOf(dow(date)) >= 0;
     return true;
   }
-  function assigned(t, kidId) { return !t.as || !t.as.length || t.as.indexOf(kidId) >= 0; }
+  function assigned(t, mid) { var m = S.members[mid]; if (!t.as || !t.as.length) return !m || m.role === 'kid'; return t.as.indexOf(mid) >= 0; }
   function dueFor(kidId, date) {
     return alive(S.tasks).filter(function (t) { return t.scope !== 'family' && assigned(t, kidId) && isDue(t, date); }).sort(byCreated);
   }
@@ -389,7 +389,8 @@
   function taskRow(t, kidId, date, fl) {
     var l = t.scope === 'family' ? (fl === undefined ? famLog(t.id, date) : fl) : logOf(t.id, kidId, date), st = l ? l.status : 'todo';
     var left, sub, subCls = '';
-    if (st === 'approved') { left = '<span class="st ok"><i>' + ic('check', 18) + '</i></span>'; sub = 'אושר'; }
+    var isPar = S.members[kidId] && S.members[kidId].role === 'parent';
+    if (st === 'approved') { left = isPar ? '<button class="st ok" data-act="untick" data-id="' + t.id + '" aria-label="ביטול: ' + esc(t.title) + '"><i>' + ic('check', 18) + '</i></button>' : '<span class="st ok"><i>' + ic('check', 18) + '</i></span>'; sub = isPar ? 'בוצע' : 'אושר'; }
     else if (st === 'pending') { left = '<button class="st wait" data-act="untick" data-id="' + t.id + '" aria-label="ביטול: ' + esc(t.title) + '"><i>' + ic('clock', 18) + '</i></button>'; sub = 'ממתין לאישור הורה'; subCls = 'warn'; }
     else {
       left = '<button class="tick" data-act="tick" data-id="' + t.id + '" aria-label="סיימתי: ' + esc(t.title) + '"><span></span></button>';
@@ -407,7 +408,7 @@
     }
     return '<div class="task' + (isDone(st) ? ' done' : '') + (subsHtml ? ' has-subs' : '') + '">' + left +
       '<div class="txt"><span class="ttl">' + esc(t.title) + '</span>' + subsHtml + '<span class="sub ' + subCls + '">' + (t.needsPhoto && !isDone(st) ? ic('camera', 14).replace('class="ic"', 'class="ic" style="display:inline;vertical-align:-2px"') + ' ' : '') + esc(sub) + '</span></div>' +
-      ptsBadge(ptsOf(t)) + '</div>';
+      (isPar ? '' : ptsBadge(ptsOf(t))) + '</div>';
   }
   function famRow(t, k, date) {
     var l = famLog(t.id, date), mine = l && l.kidId === k.id, st = l ? l.status : 'todo';
@@ -563,6 +564,12 @@
     var pl = pendingLogs(), pr = pendingReds(), n = pl.length + pr.length;
     var html = parentHero(p, 'שלום ' + esc(p.name), 'יום ' + DAY_N[dow(today())] + (n ? ' · ' + n + ' ממתינים לאישור' : ' · הכל מאושר'),
       '<div class="btns"><button class="btn" data-act="taskForm">' + ic('plus', 18) + 'משימה חדשה</button><button class="btn y" data-act="pointsForm">' + ic('star', 18) + 'נקודות בונוס</button></div>') + '<div class="main">';
+    var myDue = dueFor(p.id, today()), myFam = famFor(p.id, today());
+    if (myDue.length || myFam.length) {
+      var myDone = myDue.filter(function (t) { return isDone(statusOf(t, p.id, today())); }).length;
+      html += '<h2 class="sec-title">' + ic('user') + 'המשימות שלי להיום<span class="muted" style="font-weight:400;margin-inline-start:auto">' + myDone + '/' + myDue.length + '</span></h2><div class="list">' +
+        myDue.map(function (t) { return taskRow(t, p.id, today()); }).join('') + myFam.map(function (t) { return famRow(t, p, today()); }).join('') + '</div>';
+    }
     html += '<h2 class="sec-title">ממתין לאישור</h2>';
     if (!n) html += '<div class="empty">אין מה לאשר כרגע</div>';
     pl.forEach(function (l) {
@@ -588,8 +595,9 @@
   function weeklySummary() {
     if (!kids().length) return '';
     var t = today(), ws = weekStart(t), lws = addDays(ws, -7), lt = addDays(t, -7);
-    var cur = logs().filter(function (l) { return l.taskId && isDone(l.status) && l.date >= ws && l.date <= t; }).length;
-    var last = logs().filter(function (l) { return l.taskId && isDone(l.status) && l.date >= lws && l.date <= lt; }).length;
+    var isKidLog = function (l) { var m = S.members[l.kidId]; return m && m.role === 'kid'; };
+    var cur = logs().filter(function (l) { return l.taskId && isKidLog(l) && isDone(l.status) && l.date >= ws && l.date <= t; }).length;
+    var last = logs().filter(function (l) { return l.taskId && isKidLog(l) && isDone(l.status) && l.date >= lws && l.date <= lt; }).length;
     var miss = {}, worst = null;
     for (var d = ws; d < t; d = addDays(d, 1)) {
       kids().forEach(function (k) {
@@ -686,7 +694,7 @@
       '<div class="field"><span class="lbl">סוג</span><div class="seg">' + seg('cat', 'home', 'בבית', t.cat !== 'school') + seg('cat', 'school', 'בית ספר', t.cat === 'school') + '</div></div>' +
       '<div class="field"><span class="lbl">למי שייכת המשימה?</span><div class="seg">' + seg('scope', 'personal', 'אישית: כל ילד בנפרד', t.scope !== 'family') + seg('scope', 'family', 'משפחתית: מי שמבצע ראשון', t.scope === 'family') + '</div></div>' +
       '<div class="field pts-field"><label for="t-pts">נקודות</label><input class="inp" id="t-pts" name="points" type="number" inputmode="numeric" min="1" max="1000" required value="' + (t.points || 10) + '"></div>' +
-      (ks.length ? '<div class="field"><span class="lbl">למי?</span><div class="seg">' + ks.map(function (k) { return '<label><input type="checkbox" name="as" value="' + k.id + '"' + (t.as && t.as.indexOf(k.id) >= 0 ? ' checked' : '') + '><span>' + esc(k.name) + '</span></label>'; }).join('') + '</div><span class="hint">בלי סימון = כל הילדים</span></div>' : '') +
+      '<div class="field"><span class="lbl">למי?</span><div class="seg">' + ks.concat(parents()).map(function (k) { return '<label><input type="checkbox" name="as" value="' + k.id + '"' + (t.as && t.as.indexOf(k.id) >= 0 ? ' checked' : '') + '><span>' + esc(k.name) + (k.role === 'parent' ? ' (הורה)' : '') + '</span></label>'; }).join('') + '</div><span class="hint">בלי סימון = כל הילדים. משימה של הורה מופיעה אצלו במסך הראשי, בלי נקודות ובלי אישור.</span></div>' +
       '<div class="field"><span class="lbl">מתי?</span><div class="seg">' + seg('rec', 'daily', 'כל יום', t.rec === 'daily') + seg('rec', 'days', 'ימים קבועים', t.rec === 'days') + seg('rec', 'once', 'פעם אחת', t.rec === 'once') + '</div></div>' +
       '<div class="seg days rec-days">' + DAY_L.map(function (l, i) { return '<label><input type="checkbox" name="day" value="' + i + '"' + ((t.days || []).indexOf(i) >= 0 ? ' checked' : '') + ' aria-label="יום ' + DAY_N[i] + '"><span>' + l + '</span></label>'; }).join('') + '</div>' +
       '<div class="field rec-once"><label for="t-date">תאריך</label><input class="inp" id="t-date" type="date" name="date" value="' + esc(t.date || today()) + '"></div>' +
@@ -779,8 +787,9 @@
   function submitLog(t, photo) {
     var k = meM(), d = today(), fam = t.scope === 'family', id = fam ? famId(t.id, d) : logId(t.id, k.id, d), prev = S.logs[id];
     if (fam && prev && !prev.del && prev.kidId !== k.id && isDone(prev.status)) { render(); return toast('מישהו אחר כבר ביצע את המשימה'); }
-    S.logs[id] = { id: id, taskId: t.id, kidId: k.id, date: d, title: t.title, points: ptsOf(t), status: t.needsApproval ? 'pending' : 'approved', photo: photo || null, note: null, c: prev && prev.c || now(), u: now() };
-    commit(t.needsApproval ? 'נשלח לאישור. כל הכבוד!' : ptsOf(t) ? '+' + ptsOf(t) + ' נקודות!' : 'כל הכבוד!');
+    var par = k.role === 'parent';
+    S.logs[id] = { id: id, taskId: t.id, kidId: k.id, date: d, title: t.title, points: par ? 0 : ptsOf(t), status: (t.needsApproval && !par) ? 'pending' : 'approved', photo: par ? null : (photo || null), note: null, c: prev && prev.c || now(), u: now() };
+    commit(par ? 'סומן כבוצע' : t.needsApproval ? 'נשלח לאישור. כל הכבוד!' : ptsOf(t) ? '+' + ptsOf(t) + ' נקודות!' : 'כל הכבוד!');
   }
   function compress(file) {
     return new Promise(function (res, rej) {
@@ -815,12 +824,12 @@
       var t = S.tasks[el.dataset.id];
       if (!t) return;
       if (t.subs && t.subs.length && subsDone(t, me, today()).length < t.subs.length) return toast('קודם מסמנים את כל השלבים');
-      if (t.needsPhoto) { ui.photoTask = t.id; var inp = document.getElementById('photoInput'); inp.value = ''; inp.click(); return; }
+      if (t.needsPhoto && meM().role !== 'parent') { ui.photoTask = t.id; var inp = document.getElementById('photoInput'); inp.value = ''; inp.click(); return; }
       submitLog(t);
     },
     untick: function (el) {
       var t = S.tasks[el.dataset.id], l = t && t.scope === 'family' ? famLog(t.id, today()) : S.logs[logId(el.dataset.id, me, today())];
-      if (l && l.status === 'pending' && l.kidId === me) { touch(l).del = true; commit('בוטל'); }
+      if (l && l.kidId === me && (l.status === 'pending' || meM().role === 'parent')) { touch(l).del = true; commit('בוטל'); }
     },
     redeem: function (el) {
       var r = S.rewards[el.dataset.id];
@@ -844,7 +853,7 @@
     goalForm: function () { openModal(goalForm()); },
     weekForm: function () { openModal(weekForm()); },
     sub: function (el) {
-      var t = S.tasks[el.dataset.id], k = meM(); if (!t || !k || k.role !== 'kid') return;
+      var t = S.tasks[el.dataset.id], k = meM(); if (!t || !k) return;
       var d = today(), id = chkId(t, k.id, d), i = +el.dataset.i;
       if (t.scope === 'family') { var fl = famLog(t.id, d); if (fl && fl.kidId !== k.id && isDone(fl.status)) return toast('מישהו אחר כבר ביצע את המשימה'); }
       S.checks = S.checks || {};
@@ -853,7 +862,7 @@
       if (at >= 0) dn.splice(at, 1); else dn.push(i);
       S.checks[id] = { id: id, done: dn, u: now() };
       if (dn.length === t.subs.length) {
-        if (t.needsPhoto) { save(); render(); ui.photoTask = t.id; var inp = document.getElementById('photoInput'); inp.value = ''; inp.click(); return; }
+        if (t.needsPhoto && k.role !== 'parent') { save(); render(); ui.photoTask = t.id; var inp = document.getElementById('photoInput'); inp.value = ''; inp.click(); return; }
         return submitLog(t);
       }
       commit();
