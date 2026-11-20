@@ -207,3 +207,11 @@ form:has(input[name=rec][value=once]:checked) .rec-once{display:flex}
 .pts.grey{color:var(--muted)}
 form:has(input[name=duty]:checked) .pts-field{display:none}
 .nav .cnt{min-width:18px}
+/* v4: sub-tasks */
+.task.has-subs{align-items:flex-start}
+.subs{display:flex;flex-direction:column;gap:2px;margin:4px 0 2px}
+.subchk{display:flex;align-items:center;gap:8px;min-height:36px;border:none;background:none;padding:0;font-size:15px;color:var(--text);text-align:right}
+.subchk span{width:22px;height:22px;border-radius:6px;border:2px solid #9AA3B8;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.subchk.on{color:var(--muted);text-decoration:line-through}
+.subchk.on span{background:var(--green);border-color:var(--green);color:#fff}
+textarea.inp{padding:10px 12px;min-height:90px;resize:vertical;line-height:1.5}
