@@ -176,6 +176,8 @@
     return alive(S.tasks).filter(function (t) { return t.scope === 'family' && assigned(t, kidId) && isDue(t, date); }).sort(byCreated);
   }
   function famId(taskId, date) { return taskId + '_family_' + date; }
+  function chkId(t, kidId, date) { return t.scope === 'family' ? famId(t.id, date) : logId(t.id, kidId, date); }
+  function subsDone(t, kidId, date) { var c = (S.checks || {})[chkId(t, kidId, date)]; return c && !c.del ? (c.done || []) : []; }
   function famLog(taskId, date) { var l = S.logs[famId(taskId, date)]; return l && !l.del ? l : null; }
   function logId(taskId, kidId, date) { return taskId + '_' + kidId + '_' + date; }
   function logOf(taskId, kidId, date) { var l = S.logs[logId(taskId, kidId, date)]; return l && !l.del ? l : null; }
@@ -240,7 +242,7 @@
     var s = {
       v: 1,
       family: { name: familyName, goalTitle: 'ערב פיצה משפחתי', goalTarget: 800, u: t },
-      members: {}, tasks: {}, logs: {}, rewards: {}, reds: {}, exams: {}
+      members: {}, tasks: {}, logs: {}, rewards: {}, reds: {}, exams: {}, checks: {}
     };
     [['30 דק׳ זמן מסך', 100, 'tv'], ['לבחור את ארוחת הערב', 150, 'food'], ['להישאר ער עוד חצי שעה', 200, 'moon'], ['יום כיף עם אבא או אמא', 500, 'heart']]
       .forEach(function (r, i) { var id = uid() + i; s.rewards[id] = { id: id, title: r[0], cost: r[1], icon: r[2], c: t + i, u: t }; });
@@ -276,7 +278,7 @@
       v: 1,
       family: (b.family.u || 0) > (a.family.u || 0) ? b.family : a.family,
       members: mergeMaps(a.members, b.members), tasks: mergeMaps(a.tasks, b.tasks), logs: mergeMaps(a.logs, b.logs),
-      rewards: mergeMaps(a.rewards, b.rewards), reds: mergeMaps(a.reds, b.reds), exams: mergeMaps(a.exams, b.exams)
+      rewards: mergeMaps(a.rewards, b.rewards), reds: mergeMaps(a.reds, b.reds), exams: mergeMaps(a.exams, b.exams), checks: mergeMaps(a.checks, b.checks)
     };
   }
   function rpc(fn, body) {
@@ -394,8 +396,17 @@
       if (st === 'rejected') { sub = 'הוחזר' + (l.note ? ': ' + l.note : '') + ' · אפשר לנסות שוב'; subCls = 'bad'; }
       else sub = (t.note ? t.note + ' · ' : '') + (t.needsPhoto ? 'צריך לצלם' : t.scope === 'family' ? 'משימה משפחתית · מי שמבצע ראשון מקבל' : (t.cat === 'school' ? 'בית ספר' : 'בבית'));
     }
-    return '<div class="task' + (isDone(st) ? ' done' : '') + '">' + left +
-      '<div class="txt"><span class="ttl">' + esc(t.title) + '</span><span class="sub ' + subCls + '">' + (t.needsPhoto && !isDone(st) ? ic('camera', 14).replace('class="ic"', 'class="ic" style="display:inline;vertical-align:-2px"') + ' ' : '') + esc(sub) + '</span></div>' +
+    var subsHtml = '';
+    if (t.subs && t.subs.length) {
+      var dn = subsDone(t, kidId, date), all = isDone(st);
+      if (st === 'todo' || st === 'rejected') sub = dn.length + ' מתוך ' + t.subs.length + ' שלבים' + (sub && st === 'rejected' ? ' · ' + sub : '');
+      subsHtml = '<div class="subs">' + t.subs.map(function (x, i) {
+        var on = all || dn.indexOf(i) >= 0;
+        return '<button class="subchk' + (on ? ' on' : '') + '" data-act="sub" data-id="' + t.id + '" data-i="' + i + '"' + (all ? ' disabled' : '') + ' aria-pressed="' + on + '"><span>' + (on ? ic('check', 12) : '') + '</span>' + esc(x) + '</button>';
+      }).join('') + '</div>';
+    }
+    return '<div class="task' + (isDone(st) ? ' done' : '') + (subsHtml ? ' has-subs' : '') + '">' + left +
+      '<div class="txt"><span class="ttl">' + esc(t.title) + '</span>' + subsHtml + '<span class="sub ' + subCls + '">' + (t.needsPhoto && !isDone(st) ? ic('camera', 14).replace('class="ic"', 'class="ic" style="display:inline;vertical-align:-2px"') + ' ' : '') + esc(sub) + '</span></div>' +
       ptsBadge(ptsOf(t)) + '</div>';
   }
   function famRow(t, k, date) {
@@ -619,7 +630,7 @@
       if (!list.length) html += '<div class="empty">אין משימות</div>';
       list.forEach(function (t) {
         html += '<button class="item" data-act="taskForm" data-id="' + t.id + '" style="border:none;text-align:right;width:100%"><div class="txt"><span class="ttl">' + esc(t.title) + '</span><div class="tags"><span class="tag b">' + esc(recLabel(t)) + '</span><span class="tag">' + esc(asLabel(t)) + '</span>' +
-          (t.scope === 'family' ? '<span class="tag y">משפחתית</span>' : '') + (t.bonus ? '<span class="tag y">הפתעה ×2</span>' : '') + (t.needsPhoto ? '<span class="tag">תמונה</span>' : '') + (!t.needsApproval ? '<span class="tag">בלי אישור</span>' : '') + '</div></div>' + ptsBadge(ptsOf(t)) + '</button>';
+          (t.scope === 'family' ? '<span class="tag y">משפחתית</span>' : '') + (t.subs && t.subs.length ? '<span class="tag">' + t.subs.length + ' שלבים</span>' : '') + (t.bonus ? '<span class="tag y">הפתעה ×2</span>' : '') + (t.needsPhoto ? '<span class="tag">תמונה</span>' : '') + (!t.needsApproval ? '<span class="tag">בלי אישור</span>' : '') + '</div></div>' + ptsBadge(ptsOf(t)) + '</button>';
       });
       html += '</div>';
     });
@@ -679,6 +690,7 @@
       '<div class="field"><span class="lbl">מתי?</span><div class="seg">' + seg('rec', 'daily', 'כל יום', t.rec === 'daily') + seg('rec', 'days', 'ימים קבועים', t.rec === 'days') + seg('rec', 'once', 'פעם אחת', t.rec === 'once') + '</div></div>' +
       '<div class="seg days rec-days">' + DAY_L.map(function (l, i) { return '<label><input type="checkbox" name="day" value="' + i + '"' + ((t.days || []).indexOf(i) >= 0 ? ' checked' : '') + ' aria-label="יום ' + DAY_N[i] + '"><span>' + l + '</span></label>'; }).join('') + '</div>' +
       '<div class="field rec-once"><label for="t-date">תאריך</label><input class="inp" id="t-date" type="date" name="date" value="' + esc(t.date || today()) + '"></div>' +
+      '<div class="field"><label for="t-subs">תתי משימות (לא חובה, כל שורה שלב)</label><textarea class="inp" id="t-subs" name="subs" rows="3" maxlength="400" placeholder="למשל:\nלהרים בגדים מהרצפה\nלסדר את השולחן">' + esc((t.subs || []).join('\n')) + '</textarea><span class="hint">הילד מסמן כל שלב, והמשימה נשלחת כשכולם מסומנים</span></div>' +
       '<div class="field"><label for="t-note">הערה לילד (לא חובה)</label><input class="inp" id="t-note" name="note" maxlength="60" value="' + esc(t.note || '') + '" placeholder="למשל: עד 20:00"></div>' +
       tog('duty', 'חובה בסיסית (בלי נקודות)', t.duty) + tog('needsApproval', 'צריך אישור הורה', t.needsApproval) + tog('needsPhoto', 'לצלם הוכחה', t.needsPhoto) + tog('bonus', 'משימת הפתעה (נקודות כפולות)', t.bonus) +
       '<span class="hint">חובה בסיסית נספרת להתקדמות ולרצף, אבל לא מזכה בנקודות.</span>' +
@@ -802,6 +814,7 @@
     tick: function (el) {
       var t = S.tasks[el.dataset.id];
       if (!t) return;
+      if (t.subs && t.subs.length && subsDone(t, me, today()).length < t.subs.length) return toast('קודם מסמנים את כל השלבים');
       if (t.needsPhoto) { ui.photoTask = t.id; var inp = document.getElementById('photoInput'); inp.value = ''; inp.click(); return; }
       submitLog(t);
     },
@@ -830,6 +843,21 @@
     memberForm: function (el) { openModal(memberForm(el.dataset.id, el.dataset.role)); },
     goalForm: function () { openModal(goalForm()); },
     weekForm: function () { openModal(weekForm()); },
+    sub: function (el) {
+      var t = S.tasks[el.dataset.id], k = meM(); if (!t || !k || k.role !== 'kid') return;
+      var d = today(), id = chkId(t, k.id, d), i = +el.dataset.i;
+      if (t.scope === 'family') { var fl = famLog(t.id, d); if (fl && fl.kidId !== k.id && isDone(fl.status)) return toast('מישהו אחר כבר ביצע את המשימה'); }
+      S.checks = S.checks || {};
+      var c = S.checks[id] && !S.checks[id].del ? S.checks[id] : { id: id, done: [] };
+      var dn = (c.done || []).slice(), at = dn.indexOf(i);
+      if (at >= 0) dn.splice(at, 1); else dn.push(i);
+      S.checks[id] = { id: id, done: dn, u: now() };
+      if (dn.length === t.subs.length) {
+        if (t.needsPhoto) { save(); render(); ui.photoTask = t.id; var inp = document.getElementById('photoInput'); inp.value = ''; inp.click(); return; }
+        return submitLog(t);
+      }
+      commit();
+    },
     resetForm: function () { openModal(resetForm()); },
     pointsForm: function () { openModal(pointsForm()); },
     examForm: function () { openModal(examForm()); },
@@ -908,6 +936,7 @@
       if (rec === 'days' && !days.length) return toast('בחרו לפחות יום אחד');
       S.tasks[id] = {
         id: id, title: f.elements.title.value.trim(), cat: f.querySelector('input[name=cat]:checked').value, points: duty ? 0 : Math.max(1, +f.elements.points.value || 1), duty: duty, examId: old.examId || null, scope: f.querySelector('input[name=scope]:checked').value,
+        subs: f.elements.subs.value.split('\n').map(function (x) { return x.trim(); }).filter(Boolean).slice(0, 10),
         as: [].slice.call(f.querySelectorAll('input[name=as]:checked')).map(function (x) { return x.value; }),
         rec: rec, days: days, date: f.elements.date.value || today(), note: f.elements.note.value.trim(),
         needsApproval: f.elements.needsApproval.checked, needsPhoto: f.elements.needsPhoto.checked, bonus: f.elements.bonus.checked,
@@ -967,7 +996,7 @@
       if (!p || f.elements.pin.value !== p.pin) { toast('קוד שגוי'); f.elements.pin.value = ''; return; }
       var o = { progress: f.elements.progress.checked, tasks: f.elements.tasks.checked, exams: f.elements.exams.checked, rewards: f.elements.rewards.checked, kids: f.elements.kids.checked };
       var kill = function (x) { if (x && !x.del) touch(x).del = true; };
-      if (o.progress) { alive(S.logs).forEach(kill); alive(S.reds).forEach(kill); kids().forEach(function (k) { k.seenLv = 1; touch(k); }); }
+      if (o.progress) { alive(S.logs).forEach(kill); alive(S.reds).forEach(kill); alive(S.checks).forEach(kill); kids().forEach(function (k) { k.seenLv = 1; touch(k); }); }
       if (o.tasks) alive(S.tasks).forEach(kill);
       if (o.exams) { alive(S.exams).forEach(kill); alive(S.tasks).forEach(function (t) { if (t.examId) kill(t); }); }
       if (o.rewards) alive(S.rewards).forEach(kill);
