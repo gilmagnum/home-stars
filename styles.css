@@ -219,3 +219,5 @@ textarea.inp{padding:10px 12px;min-height:90px;resize:vertical;line-height:1.5}
 .kidcard{border:none;text-align:right;width:100%;align-items:center}
 .kidcard .txt{gap:6px}
 .sheet .item .tag{white-space:nowrap}
+/* v7: mini buttons */
+.mini{min-height:36px;padding:0 12px;border-radius:999px;border:1px solid #E7B9B5;background:#fff;color:var(--red);font-size:13px;white-space:nowrap}
