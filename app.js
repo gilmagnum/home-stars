@@ -189,7 +189,7 @@
   function logs() { return alive(S.logs); }
   function earned(kidId, from, to) {
     return logs().reduce(function (s, l) {
-      return s + (l.kidId === kidId && l.status === 'approved' && (!from || l.date >= from) && (!to || l.date <= to) ? (+l.points || 0) : 0);
+      return s + (l.kidId === kidId && l.status === 'approved' && (+l.points || 0) > 0 && (!from || l.date >= from) && (!to || l.date <= to) ? (+l.points || 0) : 0);
     }, 0);
   }
   function spent(kidId) {
@@ -197,7 +197,10 @@
       return s + (r.kidId === kidId && (r.status === 'approved' || r.status === 'pending') ? (+r.cost || 0) : 0);
     }, 0);
   }
-  function balance(kidId) { return earned(kidId) - spent(kidId); }
+  function deducted(kidId) {
+    return logs().reduce(function (s, l) { return s + (l.kidId === kidId && l.status === 'approved' && (+l.points || 0) < 0 ? -l.points : 0); }, 0);
+  }
+  function balance(kidId) { return earned(kidId) - spent(kidId) - deducted(kidId); }
   function pendingPts(kidId) {
     return logs().reduce(function (s, l) { return s + (l.kidId === kidId && l.status === 'pending' ? (+l.points || 0) : 0); }, 0);
   }
@@ -454,6 +457,9 @@
     if (home.length) html += '<h2 class="sec-title">' + ic('home') + 'בבית</h2><div class="list">' + home.map(function (t) { return taskRow(t, k.id, d); }).join('') + '</div>';
     if (school.length) html += '<h2 class="sec-title">' + ic('book') + 'בית ספר</h2><div class="list">' + school.map(function (t) { return taskRow(t, k.id, d); }).join('') + '</div>';
     if (fam.length) html += '<h2 class="sec-title">' + ic('users') + 'משימות משפחתיות</h2><p class="muted small" style="margin:-6px 0 0">מי שמבצע ראשון מקבל את הנקודות</p><div class="list">' + fam.map(function (t) { return famRow(t, k, d); }).join('') + '</div>';
+    logs().filter(function (l) { return l.kidId === k.id && (+l.points || 0) < 0 && l.date === d; }).forEach(function (l) {
+      html += '<div class="note bad">' + ic('x') + '<span>ירדו ' + (-l.points) + ' נקודות · ' + esc(l.title.replace(/^הורדה: /, '')) + '</span></div>';
+    });
     var pp = pendingPts(k.id);
     if (pp) html += '<p class="muted" style="text-align:center;margin:0">עוד ' + pp + ' נקודות מחכות לאישור</p>';
     return html + '</div>';
@@ -563,7 +569,7 @@
   function vParentHome(p) {
     var pl = pendingLogs(), pr = pendingReds(), n = pl.length + pr.length;
     var html = parentHero(p, 'שלום ' + esc(p.name), 'יום ' + DAY_N[dow(today())] + (n ? ' · ' + n + ' ממתינים לאישור' : ' · הכל מאושר'),
-      '<div class="btns"><button class="btn" data-act="taskForm">' + ic('plus', 18) + 'משימה חדשה</button><button class="btn y" data-act="pointsForm">' + ic('star', 18) + 'נקודות בונוס</button></div>') + '<div class="main">';
+      '<div class="btns"><button class="btn" data-act="taskForm">' + ic('plus', 18) + 'משימה חדשה</button><button class="btn y" data-act="pointsForm">' + ic('star', 18) + 'עדכון נקודות</button></div>') + '<div class="main">';
     var myDue = dueFor(p.id, today()), myFam = famFor(p.id, today());
     if (myDue.length || myFam.length) {
       var myDone = myDue.filter(function (t) { return isDone(statusOf(t, p.id, today())); }).length;
@@ -773,38 +779,39 @@
     var k = S.members[id]; if (!k) return '';
     var d = today(), due = dueFor(id, d), fam = famFor(id, d), lv = level(id), c = selfCompare(id), stv = streak(id);
     var html = '<div class="row" style="gap:14px">' + av(k, 'l') + '<div style="display:flex;flex-direction:column;gap:4px"><h2>' + esc(k.name) + '</h2><div class="tags"><span class="tag y">' + balance(id) + ' נק׳ ביתרה</span><span class="tag b">שלב ' + lv.lv + '</span>' + (stv ? '<span class="tag">' + (stv === 1 ? 'רצף של יום אחד' : 'רצף ' + stv + ' ימים') + '</span>' : '') + '</div></div></div>' +
-      '<div class="tags"><span class="tag">' + c.cur + ' נק׳ השבוע</span>' + (c.pct !== null ? '<span class="tag">' + (c.pct >= 0 ? '↑ ' : '') + c.pct + '% משבוע שעבר</span>' : '') + (pendingPts(id) ? '<span class="tag y">+' + pendingPts(id) + ' ממתינות לאישור</span>' : '') + '<span class="tag">נצבר בסך הכול: ' + earned(id) + '</span></div>';
+      '<div class="tags"><span class="tag">' + c.cur + ' נק׳ השבוע</span>' + (c.pct !== null ? '<span class="tag">' + (c.pct >= 0 ? '↑ ' : '') + c.pct + '% משבוע שעבר</span>' : '') + (pendingPts(id) ? '<span class="tag y">+' + pendingPts(id) + ' ממתינות לאישור</span>' : '') + '<span class="tag">נצבר בסך הכול: ' + earned(id) + '</span>' + (deducted(id) ? '<span class="tag" style="background:var(--red-l);color:#8A2620">הורדו: ' + deducted(id) + '</span>' : '') + '</div>';
     html += '<h3 style="font-size:16px;margin-top:6px">המשימות של היום</h3><div class="list">';
     if (!due.length && !fam.length) html += '<div class="muted">אין משימות להיום</div>';
     due.forEach(function (t) {
-      var st = statusOf(t, id, d);
-      html += '<div class="item" style="background:var(--bg)"><div class="txt"><span class="ttl">' + esc(t.title) + '</span>' + (t.subs && t.subs.length && !isDone(st) ? '<span class="muted small">' + subsDone(t, id, d).length + ' מתוך ' + t.subs.length + ' שלבים</span>' : '') + '</div>' + stTag(st) + '</div>';
+      var st = statusOf(t, id, d), tl = logOf(t.id, id, d);
+      html += '<div class="item" style="background:var(--bg)"><div class="txt"><span class="ttl">' + esc(t.title) + '</span>' + (t.subs && t.subs.length && !isDone(st) ? '<span class="muted small">' + subsDone(t, id, d).length + ' מתוך ' + t.subs.length + ' שלבים</span>' : '') + '</div>' + stTag(st) + (tl ? '<button class="mini" data-act="undoLog" data-id="' + tl.id + '">ביטול</button>' : '') + '</div>';
     });
     fam.forEach(function (t) {
       var l = famLog(t.id, d), who = l && S.members[l.kidId];
-      html += '<div class="item" style="background:var(--bg)"><div class="txt"><span class="ttl">' + esc(t.title) + '</span><span class="muted small">משפחתית' + (l && l.kidId !== id && isDone(l.status) ? ' · בוצע על ידי ' + esc(who ? who.name : '?') : '') + '</span></div>' + stTag(l && l.kidId === id ? l.status : 'todo') + '</div>';
+      html += '<div class="item" style="background:var(--bg)"><div class="txt"><span class="ttl">' + esc(t.title) + '</span><span class="muted small">משפחתית' + (l && l.kidId !== id && isDone(l.status) ? ' · בוצע על ידי ' + esc(who ? who.name : '?') : '') + '</span></div>' + stTag(l && l.kidId === id ? l.status : 'todo') + (l && l.kidId === id ? '<button class="mini" data-act="undoLog" data-id="' + l.id + '">ביטול</button>' : '') + '</div>';
     });
     html += '</div><h3 style="font-size:16px;margin-top:6px">פעילות אחרונה</h3><div class="list">';
     var hist = logs().filter(function (l) { return l.kidId === id; }).sort(function (a, b) { return (b.u || 0) - (a.u || 0); }).slice(0, 8);
     var rds = alive(S.reds).filter(function (r) { return r.kidId === id; }).sort(function (a, b) { return (b.u || 0) - (a.u || 0); }).slice(0, 4);
     if (!hist.length && !rds.length) html += '<div class="muted">עדיין אין פעילות</div>';
     hist.forEach(function (l) {
-      html += '<div class="item" style="background:var(--bg)"><div class="txt"><span class="ttl">' + esc(l.title) + '</span><span class="muted small">' + DAY_N[dow(l.date)] + ' ' + l.date.split('-').reverse().slice(0, 2).join('.') + '</span></div>' + stTag(l.status) + (l.points ? '<span class="pts">+' + l.points + '</span>' : '') + '</div>';
+      html += '<div class="item" style="background:var(--bg)"><div class="txt"><span class="ttl">' + esc(l.title) + '</span><span class="muted small">' + DAY_N[dow(l.date)] + ' ' + l.date.split('-').reverse().slice(0, 2).join('.') + '</span></div>' + stTag(l.status) + (l.points > 0 ? '<span class="pts">+' + l.points + '</span>' : l.points < 0 ? '<span class="pts" style="background:var(--red-l);color:#8A2620">' + l.points + '</span>' : '') + '<button class="mini" data-act="undoLog" data-id="' + l.id + '">ביטול</button>' + '</div>';
     });
     rds.forEach(function (r) {
       html += '<div class="item" style="background:var(--bg)"><div class="txt"><span class="ttl">פרס: ' + esc(r.title) + '</span><span class="muted small">' + ago(r.u || r.c) + '</span></div>' + stTag(r.status === 'rejected' ? 'rejected' : r.status) + '<span class="pts grey">' + r.cost + '−</span></div>';
     });
-    html += '</div><div class="btns" style="margin-top:6px"><button class="btn y" data-act="pointsForm" data-id="' + id + '">' + ic('star', 18) + 'נקודות בונוס</button><button class="btn ghost" data-act="closeModal">סגירה</button></div>';
+    html += '</div><div class="btns" style="margin-top:6px"><button class="btn y" data-act="pointsForm" data-id="' + id + '">' + ic('star', 18) + 'עדכון נקודות</button><button class="btn ghost" data-act="closeModal">סגירה</button></div>';
     return html;
   }
   function pointsForm(pre) {
     var ks = kids();
-    if (!ks.length) return '<h2>נקודות בונוס</h2><p>קודם צריך להוסיף ילדים.</p><button class="btn block" data-act="closeModal">סגירה</button>';
-    return '<form data-form="points"><h2>נקודות בונוס</h2>' +
+    if (!ks.length) return '<h2>עדכון נקודות</h2><p>קודם צריך להוסיף ילדים.</p><button class="btn block" data-act="closeModal">סגירה</button>';
+    return '<form data-form="points"><h2>עדכון נקודות</h2>' +
+      '<div class="field"><span class="lbl">מה עושים?</span><div class="seg">' + seg('mode', 'add', 'הוספת נקודות', true) + seg('mode', 'sub', 'הורדת נקודות', false) + '</div></div>' +
       '<div class="field"><span class="lbl">למי?</span><div class="seg">' + ks.map(function (k, i) { return seg('kid', k.id, esc(k.name), pre ? k.id === pre : i === 0); }).join('') + '</div></div>' +
       '<div class="field"><label for="p-n">כמה נקודות?</label><input class="inp" id="p-n" name="n" type="number" inputmode="numeric" min="1" max="1000" required value="10"></div>' +
-      '<div class="field"><label for="p-why">על מה?</label><input class="inp" id="p-why" name="why" required maxlength="50" placeholder="למשל: עזר לאח הקטן"></div>' +
-      '<button class="btn y block" type="submit">הענקה</button><button class="linkbtn" type="button" data-act="closeModal">ביטול</button></form>';
+      '<div class="field"><label for="p-why">על מה?</label><input class="inp" id="p-why" name="why" required maxlength="50" placeholder="למשל: עזר לאח הקטן"><span class="hint">הסיבה מוצגת לילד. הורדת נקודות לא משנה את השלב ואת היעד המשפחתי, רק את היתרה לפרסים.</span></div>' +
+      '<button class="btn y block" type="submit">עדכון</button><button class="linkbtn" type="button" data-act="closeModal">ביטול</button></form>';
   }
   function rejectForm(id) {
     var l = S.logs[id];
@@ -902,6 +909,17 @@
     },
     resetForm: function () { openModal(resetForm()); },
     pointsForm: function (el) { openModal(pointsForm(el && el.dataset.id)); },
+    undoLog: function (el) {
+      var l = S.logs[el.dataset.id]; if (!l) return;
+      openModal(confirmBox('לבטל את "' + esc(l.title) + '"?' + (l.points ? ' ' + (l.points > 0 ? 'הנקודות (' + l.points + ') יורדו מהיתרה.' : 'הנקודות (' + (-l.points) + ') יחזרו ליתרה.') : ''), 'undoLogYes', l.id, 'ביטול הסימון'));
+    },
+    undoLogYes: function (el) {
+      var l = S.logs[el.dataset.id]; if (!l) return closeModal();
+      touch(l).del = true;
+      if (S.checks && S.checks[l.id]) touch(S.checks[l.id]).del = true;
+      commit('בוטל: ' + l.title);
+      openModal(kidView(l.kidId));
+    },
     kidView: function (el) { openModal(kidView(el.dataset.id)); },
     examForm: function () { openModal(examForm()); },
     delExam: function (el) { openModal(confirmBox('למחוק את המבחן ואת משימות החזרה שלו?', 'delExamYes', el.dataset.id, 'מחיקה')); },
@@ -1052,8 +1070,10 @@
     },
     points: function (f) {
       var kid = f.querySelector('input[name=kid]:checked').value, n = Math.max(1, +f.elements.n.value || 1), id = uid();
-      S.logs[id] = { id: id, taskId: null, kidId: kid, date: today(), title: 'בונוס: ' + f.elements.why.value.trim(), points: n, status: 'approved', photo: null, c: now(), u: now() };
-      closeModal(); commit('+' + n + ' ל' + S.members[kid].name);
+      var sub = f.querySelector('input[name=mode]:checked').value === 'sub', bal = balance(kid);
+      if (sub && n > bal) return toast('אפשר להוריד עד ' + bal + ' נקודות (היתרה של ' + S.members[kid].name + ')');
+      S.logs[id] = { id: id, taskId: null, kidId: kid, date: today(), title: (sub ? 'הורדה: ' : 'בונוס: ') + f.elements.why.value.trim(), points: sub ? -n : n, status: 'approved', photo: null, c: now(), u: now() };
+      closeModal(); commit((sub ? '−' : '+') + n + ' ל' + S.members[kid].name);
     },
     reject: function (f) {
       var l = S.logs[f.dataset.id];
